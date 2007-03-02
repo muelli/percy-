@@ -1,0 +1,144 @@
+Percy++ / PIR in C++
+
+Ian Goldberg <iang@cs.uwaterloo.ca>
+
+Version 0.5: 2007-03-02
+
+About Percy++
+-------------
+
+Percy++ is an implementation of the private information retrieval (PIR)
+protocols from the paper:
+
+    Ian Goldberg.  Improving the Robustness of Private Information
+    Retrieval.  Proc. of 2007 IEEE Symposium on Security and Privacy
+    (Oakland 2007), May 2007.
+
+Briefly, private information retrieval is the task of fetching a block
+of data from a database server (or group of distributed servers) without
+the server(s) learning which block it was that you were interested in.
+
+These protocols provide t-private v-Byzantine-robust tau-independent
+k-out-of-l private information retrieval.  This means:
+
+k-out-of-l: there are l distriduted database servers, and we only need
+            to receive replies from k of them (the rest might be down,
+	    overloaded, unreachable, etc.)
+
+t-private:  no coalition of up to t servers receives *any information at
+            all* about the block you are intrested in
+
+v-Byzantine-robust: up to v of the servers that do reply might give
+		    *incorrect* answers; we will want to detect which
+		    servers did that, and to determine the correct
+		    database block
+
+tau-independent: the database is split between the servers so that no
+                 coalition of up to tau of them can determine the
+		 contents of the database itself (tau=0 means all the
+		 servers just have a complete copy of the database)
+
+All of the above are "information-theoretic"; that is, the protections
+hold, even if the servers have unlimited computational power.  We can
+also optionally add l-computationally-private to the list of properties.
+This gives "hybrid" protection against coalitions of larger than t
+servers; with this option enabled, coalitions of up to t servers still
+get no information at all about your query, but even if all l servers
+collude, they would have to break a cryptographic problem in order to
+learn your query.
+
+Any choice of t, v, tau, k and l will work, so long as they satisfy the
+following conditions:
+
+- They are all integers.
+- 0 < t <= t + tau < k <= l
+- 0 <= v < k - floor(sqrt(k*(t+tau)))
+
+Note that currently, in order to handle v>0, you need to have the
+computer algebra system MuPAD installed.  Percy++ uses MuPAD for one
+step of the HardRecover subroutine that handles incorrect responses from
+the server.  We are currently working to write this step in C++ and
+remove the MuPAD dependency.
+
+Except for that piece (and the small bit of perl that glues the C++ and
+MuPAD together), Percy++ is written entirely in C++, using Victor Shoup's
+NTL library.  You will need to install that library before you can use
+Percy++.  In addition, if you tell NTL to use the GMP library when you
+install it, Percy++'s calculations will be faster.
+
+Building and Using Percy++
+--------------------------
+
+Edit the Makefile if your NTL headers are not in /usr/local/include/NTL.
+Then "make" should build three programs: pirclient, pirserver, and
+splitdatabase.
+
+The pirclient and pirserver programs are sample frontends to the Percy++
+library, meant primarily as a demonstration.  The pirclient program
+takes as arguments:
+
+   n = length of database (bytes)
+   b = block size (bytes)
+   w = word size (bits)
+   l = number of servers
+   k = number of servers that need to respond
+   t = number of servers that can collude
+   i = index of block to fetch (0-based)
+ tau = tau-independence value of database shares
+
+The pirclient program will spawn l pirserver programs to query the
+database.  In a non-demonstration, these servers would be running on
+remote sites, and the client would probably use SSL/TLS to connect to
+them.  The database itself is kept in a single file called "database".
+You can populate that file however you like; copying some amount of data
+from /dev/urandom is fine.
+
+If the PIRS_FAIL environment variable is set to a number (like 15), then
+with that percentage chance, each server will fail to respond.
+Similarly, if PIRS_BYZ is set to a number, then with that percentage
+chance, each server will return an incorrect answer.
+
+The pirclient program will write the block it computes to standard out.
+The testclient script is a simple wrapper to pirclient.  To use it,
+first make a database of size 2097152 bytes (2MB) with, for example,
+"dd if=/dev/urandom bs=2048 count=1024 of=database".  Then running
+"./testclient 5 2", for example, will perform a 2-private query of 5
+servers.
+
+To try the tau-independence property, you will need to split the
+database file into l pieces using the splitdatabase command.  Run
+"./splitdatabase 1 5" to split the database into 5 files, named
+database.1, database.2, etc., with 1-independence.  That is, no single
+database server could determine the contents of the database, but more
+than one could.  Note that this is entirely separate from the t
+parameter, which controls how many servers can collude without being
+able to learn the value of your query (as opposed to the contents of the
+database).  Then running "./testclient 5 2 1" (the third parameter is
+tau) will test tau-independence.
+
+To try the hybrid protection, add the word "hybrid" as the fourth
+parameter to testclient, or after the tau parameter to pirclient.
+Note that using hybrid protection is much more computationally intensive
+than not using it.
+
+Feel free to send question, bug reports, patches, etc. to the above
+address.
+
+Percy++ is covered by the following (GPL) license:
+
+    Percy++
+    Copyright 2007 Ian Goldberg <iang@cs.uwaterloo.ca>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of version 2 of the GNU General Public License as
+    published by the Free Software Foundation.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    There is a copy of the GNU General Public License in the COPYING file
+    packaged with this plugin; if you cannot find it, write to the Free
+    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+    02111-1307  USA

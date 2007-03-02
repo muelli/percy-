@@ -1,0 +1,112 @@
+#!/usr/bin/perl
+
+##  Percy++
+##  Copyright 2007 Ian Goldberg <iang@cs.uwaterloo.ca>
+##
+##  This program is free software; you can redistribute it and/or modify
+##  it under the terms of version 2 of the GNU General Public License as
+##  published by the Free Software Foundation.
+##
+##  This program is distributed in the hope that it will be useful,
+##  but WITHOUT ANY WARRANTY; without even the implied warranty of
+##  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  There is a copy of the GNU General Public License in the COPYING file
+##  packaged with this plugin; if you cannot find it, write to the Free
+##  Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+##  02111-1307  USA
+
+use strict;
+
+my ($p1, $p2, $poly);
+
+chomp($p1 = <>);
+# print STDERR "p1 = $p1\n";
+chomp($p2 = <>);
+# print STDERR "p2 = $p2\n";
+chomp($poly = <>);
+# print STDERR "poly = $poly\n";
+
+undef $/;
+
+# Send the factoring request (mod p2) to MuPAD.  "in2.mn" is a MuPAD
+# worksheet containing only read("io-in2"):.
+unlink "io-out1";
+unlink "io-out2";
+open(I2, ">io-in2");
+print I2 "p2 := $p2;\nf := poly($poly,[x,y],IntMod(p2));\n";
+print I2 "ff := select(factor(f),phi->degree(phi,y)=1);\n";
+print I2 "write(Text, \"io-out2\", ff);\n";
+close(I2);
+open(MP2, "mupad -evaluate in2.mn 2>/dev/null |");
+
+if ($p1 ne "1") {
+    # Send the factoring request (mod p1) to MuPAD.  "in1.mn" is a MuPAD
+    # worksheet containing only read("io-in1"):.
+    open(I1, ">io-in1");
+    print I1 "p1 := $p1;\nf := poly($poly,[x,y],IntMod(p1));\n";
+    print I1 "ff := select(factor(f),phi->degree(phi,y)=1);\n";
+    print I1 "write(Text, \"io-out1\", ff);\n";
+    close(I1);
+    open(MP1, "mupad -evaluate in1.mn 2>/dev/null |");
+
+    # Wait for MP1 to finish
+    while(<MP1>) {}
+    close(MP1);
+    unlink "io-in1";
+    &handle_output("io-out1");
+} else {
+    print "0\n";
+}
+
+# Wait for MP2 to finish
+while(<MP2>) {}
+close(MP2);
+unlink "io-in2";
+&handle_output("io-out2");
+
+sub handle_output {
+    open(O, $_[0]);
+    my $output = <O>;
+    close(O);
+    unlink $_[0];
+
+    # Massage the output so that NTL will be happy with it
+    $output =~ s/\\\n//g;
+    while ($output =~ /poly\(([^,]*)/g) {
+	my $p = $1;
+	$p =~ s/\s//g;
+	unless ($p =~ /^[+-]/) {
+	    $p = "+".$p;
+	}
+	my $maxxdeg = 0;
+	my @xcoeffs = ();
+	my $ycoeff = 0;
+	while ($p =~ /([+-])(\d*)\*?(x(\^(\d+))?|y)?/g) {
+	    my ($sign, $coeff, $var, $expon) = ($1, $2, $3, $5);
+	    $coeff = 1 if $coeff eq "";
+	    $sign = "" if $sign eq "+";
+	    if ($expon eq "") {
+		$expon = 1 if $var eq "x";
+		$expon = 0 if $var eq "";
+	    }
+	    # print STDERR "$sign$coeff $var $expon\n";
+	    if ($var eq "y") {
+		$ycoeff = "$sign$coeff";
+	    } else {
+		$maxxdeg = $expon if $maxxdeg < $expon;
+		$xcoeffs[$expon] = "$sign$coeff";
+	    }
+	}
+	# print STDERR "\n";
+	print "$ycoeff [";
+	my $d;
+	foreach $d (0..$maxxdeg) {
+	    print ($xcoeffs[$d] || "0");
+	    print " ";
+	}
+	print "]\n";
+    }
+    print "0\n";
+}

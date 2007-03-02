@@ -1,0 +1,46 @@
+#!/bin/bash
+
+##  Percy++
+##  Copyright 2007 Ian Goldberg <iang@cs.uwaterloo.ca>
+##
+##  This program is free software; you can redistribute it and/or modify
+##  it under the terms of version 2 of the GNU General Public License as
+##  published by the Free Software Foundation.
+##
+##  This program is distributed in the hope that it will be useful,
+##  but WITHOUT ANY WARRANTY; without even the implied warranty of
+##  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  There is a copy of the GNU General Public License in the COPYING file
+##  packaged with this plugin; if you cannot find it, write to the Free
+##  Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+##  02111-1307  USA
+
+if [ $# -lt 2 ]; then
+    echo "Usage: $0 n t [tau] [hybrid]"
+    exit 1
+fi
+
+if [ "$3" = "" ]; then
+    tau="0"
+else
+    tau="$3"
+fi
+
+if [ "$4" = "hybrid" ]; then
+    n=8192
+    b=1024
+    tot=8
+else
+    n=2097152
+    b=16384
+    tot=128
+fi
+
+block=$[$RANDOM % $tot]
+
+echo ./pirclient $n $b 1024 $1 $1 $2 $block $tau $4
+./pirclient $n $b 1024 $1 $1 $2 $block $tau $4 > out.client && \
+dd if=database bs=$b skip=$block count=1 > out.real 2>/dev/null && \
+cmp out.client out.real && echo 'Success!'
