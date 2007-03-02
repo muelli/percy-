@@ -142,3 +142,7 @@ Percy++ is covered by the following (GPL) license:
     packaged with this plugin; if you cannot find it, write to the Free
     Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
     02111-1307  USA
+
+pirclient.cc and findroots.cc use the PStreams header file pstream.h,
+Copyright (C) 2001,2002,2003,2004 Jonathan Wakely under the terms of the
+GNU Lesser General Public License.
