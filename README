@@ -26,7 +26,7 @@ k-out-of-l: there are l distriduted database servers, and we only need
 	    overloaded, unreachable, etc.)
 
 t-private:  no coalition of up to t servers receives *any information at
-            all* about the block you are intrested in
+            all* about the block you are interested in
 
 v-Byzantine-robust: up to v of the servers that do reply might give
 		    *incorrect* answers; we will want to detect which
