@@ -21,7 +21,7 @@ the server(s) learning which block it was that you were interested in.
 These protocols provide t-private v-Byzantine-robust tau-independent
 k-out-of-l private information retrieval.  This means:
 
-k-out-of-l: there are l distriduted database servers, and we only need
+k-out-of-l: there are l distributed database servers, and we only need
             to receive replies from k of them (the rest might be down,
 	    overloaded, unreachable, etc.)
 
@@ -44,8 +44,8 @@ also optionally add l-computationally-private to the list of properties.
 This gives "hybrid" protection against coalitions of larger than t
 servers; with this option enabled, coalitions of up to t servers still
 get no information at all about your query, but even if all l servers
-collude, they would have to break a cryptographic problem in order to
-learn your query.
+collude, they would still have to break a cryptographic problem in order
+to learn your query.
 
 Any choice of t, v, tau, k and l will work, so long as they satisfy the
 following conditions:
