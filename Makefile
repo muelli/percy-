@@ -20,7 +20,7 @@ LDLIBS=-lntl -lgmp
 
 TARGETS=pirserver pirclient splitdatabase
 
-CLIENT_O=percyclient.o percyparams.o recover.o findroots.o percyio.o
+CLIENT_O=percyclient.o percyparams.o recover.o percyio.o rr_roots.o ZZ_pXY.o
 SERVER_O=percyserver.o percyparams.o datastore.o percyio.o
 
 all: $(TARGETS)

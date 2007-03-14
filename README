@@ -2,7 +2,7 @@ Percy++ / PIR in C++
 
 Ian Goldberg <iang@cs.uwaterloo.ca>
 
-Version 0.5: 2007-03-02
+Version 0.6: 2007-03-14
 
 About Percy++
 -------------
@@ -54,17 +54,10 @@ following conditions:
 - 0 < t <= t + tau < k <= l
 - 0 <= v < k - floor(sqrt(k*(t+tau)))
 
-Note that currently, in order to handle v>0, you need to have the
-computer algebra system MuPAD installed.  Percy++ uses MuPAD for one
-step of the HardRecover subroutine that handles incorrect responses from
-the server.  We are currently working to write this step in C++ and
-remove the MuPAD dependency.
-
-Except for that piece (and the small bit of perl that glues the C++ and
-MuPAD together), Percy++ is written entirely in C++, using Victor Shoup's
-NTL library.  You will need to install that library before you can use
-Percy++.  In addition, if you tell NTL to use the GMP library when you
-install it, Percy++'s calculations will be faster.
+Percy++ is written entirely in C++, using Victor Shoup's NTL library.
+You will need to install that library before you can use Percy++.  In
+addition, if you tell NTL to use the GMP library when you install it,
+Percy++'s calculations will be faster.
 
 Building and Using Percy++
 --------------------------
@@ -124,6 +117,20 @@ than not using it.
 Feel free to send question, bug reports, patches, etc. to the above
 address.
 
+Changelog
+---------
+
+Version 0.6 (2007-03-14):
+    Thanks to M. Jason Hinek <mjhinek@alumni.uwaterloo.ca>, the
+    dependency on MuPAD has been removed.  All computations are now done
+    natively in C++ using NTL.
+
+Version 0.5 (2007-03-02):
+    Initial release
+
+Copyright
+---------
+
 Percy++ is covered by the following (GPL) license:
 
     Percy++
@@ -146,3 +153,9 @@ Percy++ is covered by the following (GPL) license:
 pirclient.cc and findroots.cc use the PStreams header file pstream.h,
 Copyright (C) 2001,2002,2003,2004 Jonathan Wakely under the terms of the
 GNU Lesser General Public License.
+
+The ZZ_pXY.cc and ZZ_pXY.h files are adapted from files in version
+5.4 of the NTL package by Victor Shoup <victor@shoup.net>, with
+modifications by M. Jason Hinek <mjhinek@alumni.uwaterloo.ca> and
+Ian Goldberg <iang@cs.uwaterloo.ca>, and are also under the above GPL
+version 2 license.

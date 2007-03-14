@@ -18,7 +18,7 @@
 ##  02111-1307  USA
 
 if [ $# -lt 2 ]; then
-    echo "Usage: $0 n t [tau] [hybrid]"
+    echo "Usage: $0 n t [tau] [hybrid|prime]"
     exit 1
 fi
 
@@ -31,16 +31,38 @@ fi
 if [ "$4" = "hybrid" ]; then
     n=8192
     b=1024
+    w=1024
     tot=8
+elif [ "$4" = "prime" ]; then
+    n=2097152
+    b=8192
+    w=256
+    tot=256
 else
     n=2097152
     b=16384
+    w=1024
     tot=128
 fi
 
 block=$[$RANDOM % $tot]
 
-echo ./pirclient $n $b 1024 $1 $1 $2 $block $tau $4
-./pirclient $n $b 1024 $1 $1 $2 $block $tau $4 > out.client && \
-dd if=database bs=$b skip=$block count=1 > out.real 2>/dev/null && \
-cmp out.client out.real && echo 'Success!'
+echo ./pirclient $n $b $w $1 $1 $2 $block $tau $4
+./pirclient $n $b $w $1 $1 $2 $block $tau $4 > out.client && \
+dd if=database bs=$b skip=$block count=1 > out.real 2>/dev/null
+
+# Check if any of the blocks output is the right one
+totsize=`stat -c %s out.client`
+numout=$[$totsize / $b]
+testblock=0
+while [ $testblock -lt $numout ]; do
+    if cmp <(dd if=out.client bs=$b count=1 skip=$testblock 2>/dev/null) \
+    	out.real >/dev/null ; then
+	testblock=$[$testblock + 1]
+	echo "Success matching output block $testblock of $numout"
+	exit 0
+    fi
+    testblock=$[$testblock + 1]
+done
+echo "Did not return correct block."
+exit 1

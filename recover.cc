@@ -21,7 +21,7 @@
 #include <math.h>
 #include <mat_ZZ_p.h>
 #include <ZZ_pX.h>
-#include "findroots.h"
+#include "rr_roots.h"
 #include "recover.h"
 
 NTL_CLIENT
@@ -291,12 +291,12 @@ static vector<RecoveryPoly> findpolys(unsigned int k, unsigned int t,
 
     // The soln vector now consists of coefficients for a bivariate
     // polynomial P(x,y).
-    vec_ZZ_pX P;  // This really should be ZZ_pXY
-    P.SetLength(l/k + 1);   // The y-degree of P
+    ZZ_pXY P;
+    P.SetMaxLength(l/k + 1);   // The y-degree of P
 
     for(unsigned int i=0; i<c; ++i) {
 	if (soln[i] != 0) {
-	    SetCoeff(P[Qinv[i].second], Qinv[i].first, soln[i]);
+	    SetCoeff(P, Qinv[i].second, Qinv[i].first, soln[i]);
 	}
     }
 

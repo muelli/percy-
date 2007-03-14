@@ -15,10 +15,10 @@
 //  Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
 //  02111-1307  USA
 
-#ifndef __FINDROOTS_H__
-#define __FINDROOTS_H__
+#ifndef __RR_ROOTS_H__
+#define __RR_ROOTS_H__
 
-#include <ZZ_pX.h>
+#include "ZZ_pXY.h"
 
 NTL_CLIENT
 
@@ -27,7 +27,6 @@ NTL_CLIENT
 // degreebound.  The global ZZ_pContext should already be set to
 // p1 * p2, where p2 is prime, and p1 is either prime or 1.
 // This routine may also return some spurious values.
-vec_ZZ_pX findroots(const vec_ZZ_pX /* really ZZ_pXY */ &P,
-	int degreebound, ZZ p1, ZZ p2);
+vec_ZZ_pX findroots(const ZZ_pXY &P, int degreebound, ZZ p1, ZZ p2);
 
 #endif
