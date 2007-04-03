@@ -923,6 +923,19 @@ ZZ_pXY mapit(const ZZ_pXY& Q, const ZZ_p& a){
   return temp;
 }
 
+void MakeMonic(ZZ_pXY &x)
+{
+    if (IsZero(x))
+	return;
+
+    ZZ_p lc = LeadCoeff(LeadCoeff(x));
+    if (lc == 1)
+	return;
+
+    ZZ_p lcinv;
+    inv(lcinv, lc);
+    x *= lcinv;
+}
 
 
 vec_ZZ_p findroots(const ZZ_pX &P){

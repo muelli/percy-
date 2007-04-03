@@ -234,6 +234,12 @@ void LeftShift(ZZ_pXY& x, const ZZ_pXY& a, long n);
 inline ZZ_pXY LeftShift(const ZZ_pXY& a, long n)
    { ZZ_pXY x; LeftShift(x, a, n); NTL_OPT_RETURN(ZZ_pXY, x); }
 
+ZZ_pX shiftX(const ZZ_pX& P, long n);
+// a =  X^n * P(X) 
+
+ZZ_pXY backShiftX(const ZZ_pXY& P, long n);
+// returns  P(X) / X^n
+
 #ifndef NTL_TRANSITION
 
 inline ZZ_pXY operator>>(const ZZ_pXY& a, long n)

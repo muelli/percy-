@@ -144,8 +144,19 @@ static vector<unsigned short> intersect(const vector<unsigned short> &v1,
     return intersection;
 }
 
-static ZZ_p C(unsigned int n, unsigned int k)
+typedef pair<unsigned int, unsigned int> pairint;
+typedef map<pairint, ZZ_p> Ccache_t;
+
+static ZZ_p C(Ccache_t &Ccache, unsigned int n, unsigned int k)
 {
+    pairint nk;
+    nk.first = n;
+    nk.second = k;
+    Ccache_t::const_iterator Ci = Ccache.find(nk);
+    if (Ci != Ccache.end()) {
+	return Ci->second;
+    }
+    
     ZZ_p num, dem;
     num = 1;
     dem = 1;
@@ -156,7 +167,9 @@ static ZZ_p C(unsigned int n, unsigned int k)
 	dem *= (k-i);
     }
 
-    return num/dem;
+    num /= dem;
+    Ccache[nk] = num;
+    return num;
 }
 
 // Return the index of the first non-zero entry in this row, or -1 if
@@ -227,13 +240,14 @@ struct RecoveryPoly {
     ZZ_pX phi;
 };
 
-// Find all polynomials of degree at most k that agree with the given
-// (index,share) pairs at at least t of the n points.  The notation is
-// from Venkatesan Guruswami and Madhu Sudan, "Improved Decoding of
-// Reed-Solomon and Algebraic-Geometry Codes".
-static vector<RecoveryPoly> findpolys(unsigned int k, unsigned int t,
+// Construct a bivariate polynomial P(x,y) such that, for any polynomial
+// f(x) of degree at most k that agrees with at least t of the given
+// points, (y-f(x)) is a factor of P(x,y).  This version is the naive
+// algorithm from Venkatesan Guruswami and Madhu Sudan, "Improved
+// Decoding of Reed-Solomon and Algebraic-Geometry Codes".
+static ZZ_pXY interpolate_naive(unsigned int k, unsigned int t,
 	const vector<unsigned short> &goodservers,
-	const vec_ZZ_p& indices, const vec_ZZ_p& shares, ZZ p1, ZZ p2)
+	const vec_ZZ_p& indices, const vec_ZZ_p& shares)
 {
     unsigned int n = goodservers.size();
 
@@ -241,7 +255,8 @@ static vector<RecoveryPoly> findpolys(unsigned int k, unsigned int t,
     unsigned int r = 1 + (unsigned int)(floor( (k*n + sqrt(k*k*n*n+4*(t*t-k*n)))/(2*(t*t-k*n)) ));
     unsigned int l = r*t - 1;
 
-    typedef pair<unsigned int, unsigned int> pairint;
+    std::cerr << "Constructing (1," << k << ")-degree " << (l/k)*k << " polynomial...\n";
+
     map<pairint, unsigned int> Qmap;
     map<unsigned int, pairint> Qinv;
 
@@ -266,6 +281,8 @@ static vector<RecoveryPoly> findpolys(unsigned int k, unsigned int t,
 
     std::cerr << "Generating " << n * r * (r+1) / 2 << " x " << c << " matrix...\n";
 
+    Ccache_t Ccache;
+
     // This is the part you need to read the paper for
     unsigned int Arow = 0;
     for (i=0; i<n; ++i) {
@@ -275,7 +292,8 @@ static vector<RecoveryPoly> findpolys(unsigned int k, unsigned int t,
 		for (j2p = j2; j2p <= l/k; ++j2p) {
 		    for (j1p = j1; j1p <= l - k*j2p; ++j1p) {
 			pairint j1pj2p(j1p, j2p);
-			A[Arow][Qmap[j1pj2p]] = C(j1p,j1) * C(j2p,j2) *
+			A[Arow][Qmap[j1pj2p]] = C(Ccache, j1p,j1) *
+			    C(Ccache, j2p,j2) *
 			    power(indices[goodservers[i]], j1p-j1) *
 			    power(shares[goodservers[i]], j2p-j2);
 		    }
@@ -300,7 +318,183 @@ static vector<RecoveryPoly> findpolys(unsigned int k, unsigned int t,
 	}
     }
 
-    std::cerr << "Factoring resulting polynomial...\n";
+    return P;
+}
+
+// Evaluate the (r,s)th Hasse mixed partial derivative of g at the point
+// (alpha, beta), which is:
+// \sum_{i,j} C(i,r) C(j,s) a_{i,j} alpha^{i-r} beta^{j-s}
+// = \sum_j C(j,s) beta^{j-s} \sum_i C(i,r) a_{i,j} alpha^{i-r}
+// where g(x,y) = \sum_{i,j} a_{i,j} x^i y^j
+// See page 14 of R. J. McEliece. The Guruswami-Sudan Decoding
+// Algorithm for Reed-Solomon Codes. IPN Progress Report 42-153, May 15,
+// 2003.  http://citeseer.ist.psu.edu/mceliece03guruswamisudan.html
+static ZZ_p evalhasse(const ZZ_pXY &g, unsigned int r, unsigned int s,
+	ZZ_p alpha, ZZ_p beta, Ccache_t &Ccache)
+{
+    ZZ_p res;
+    res = 0;
+    int ydeg = deg(g);
+    for (int j = ydeg; j >= (int)s; --j) {
+	const ZZ_pX &gj = coeff(g,j);
+	int xdeg = deg(gj);
+	// Use Horner's method to evaluate the inner sum (which is the
+	// coefficient of beta^{j-s})
+	ZZ_p resx;
+	resx = 0;
+	for (int i = xdeg; i >= (int) r; --i) {
+	    resx *= alpha;
+	    resx += C(Ccache, i,r) * coeff(gj, i);
+	}
+	// Use Horner's method to accumulate the results into the outer
+	// sum
+	res *= beta;
+	res += C(Ccache, j,s) * resx;
+    }
+
+    return res;
+}
+
+// Construct a bivariate polynomial P(x,y) such that, for any polynomial
+// f(x) of degree at most v that agrees with at least t of the given
+// points, (y-f(x)) is a factor of P(x,y).  This version is K"otter's
+// Interpolation Algorithm, as described in Section VII of R. J.
+// McEliece. The Guruswami-Sudan Decoding Algorithm for Reed-Solomon
+// Codes. IPN Progress Report 42-153, May 15, 2003.
+// http://citeseer.ist.psu.edu/mceliece03guruswamisudan.html
+static ZZ_pXY interpolate_kotter(unsigned int v, unsigned int t,
+	const vector<unsigned short> &goodservers,
+	const vec_ZZ_p& indices, const vec_ZZ_p& shares)
+{
+
+    unsigned int n = goodservers.size();
+
+    // Compute the m and L parameters
+    unsigned int m = 1 + (unsigned int)(floor( v*n / (t*t-v*n)));
+    unsigned int L = (m*t - 1)/v;
+
+    std::cerr << "Constructing (1," << v << ")-degree " << L*v << " polynomial...\n";
+    std::cerr << "Estimated work: " << n * m * (m+1) / 2 * (L+1) << "\n";
+    std::cerr << "Min matches: " << t << "\n";
+    std::cerr << "Max degree: " << v << "\n";
+#if 0
+    double Km = v * n * (m+1);
+    Km /= (double) m;
+    Km = floor(sqrt(Km));
+    std::cerr << "Km ~= " << Km << "\n";
+    unsigned int C = n * m * (m+1) / 2;
+    for (int K=0;;++K) {
+	cerr << (K*(K+v)+(K%v)*(v-(K%v)))/(2*v) << " " << C << "\n";
+	if ( ((K*(K+v)+(K%v)*(v-(K%v)))/(2*v)) > C ) {
+	    std::cerr << "Km: " << (K-1)/m + 1 << "\n";
+	    break;
+	}
+    }
+#endif
+
+    // Initialize the g vector
+    typedef pair<ZZ_pXY, unsigned int> polydeg;
+    polydeg g[L+1];
+    for (unsigned int j = 0; j <= L; ++j) {
+	SetCoeff(g[j].first, j);
+	g[j].second = j * v;
+    }
+
+    Ccache_t Ccache;
+
+    for (unsigned int i = 0; i < n; ++i) {
+	ZZ_p alpha = indices[goodservers[i]];
+	ZZ_p beta = shares[goodservers[i]];
+	for (unsigned int r = 0; r < m; ++r) {
+	    for (unsigned int s = 0; s < m - r; ++s) {
+		int seennonzero = 0;
+		unsigned int seendeg = 0, jstar = 0;
+		ZZ_p Delta[L+1];
+		for (unsigned int j = 0; j <= L; ++j) {
+		    Delta[j] = evalhasse(g[j].first, r, s, alpha, beta,
+			    Ccache);
+		    // cerr << i << " " << r << " " << s << " " << j;
+		    if (Delta[j] != 0) {
+			// cerr << " nonzero";
+			seennonzero = 1;
+			seendeg = g[j].second;
+			jstar = j;
+		    }
+		    // cerr << "\n";
+		}
+		if (seennonzero) {
+		    for (unsigned int j = 0; j <= L; ++j) {
+			if (Delta[j] != 0 && g[j].second <= seendeg) {
+			    seendeg = g[j].second;
+			    jstar = j;
+			}
+		    }
+		    ZZ_p Deltajstar = Delta[jstar];
+		    ZZ_pXY f = g[jstar].first;
+		    // cerr << "Deltajstar = " << Deltajstar << "\n";
+		    // cerr << "f = " << f << "\n";
+		    for (unsigned int j = 0; j <= L; ++j) {
+			if (Delta[j] != 0) {
+			    if (j != jstar) {
+				// cerr << "g["<<j<<"] = " << Deltajstar << " * " << g[j].first << " - " << Delta[j] << " * " << f << " = ";
+
+				g[j].first = Deltajstar * g[j].first -
+				    Delta[j] * f;
+				// cerr << g[j].first << "\n";
+			    } else {
+				ZZ_pX xminusalpha;
+				SetCoeff(xminusalpha, 1, 1);
+				SetCoeff(xminusalpha, 0, -alpha);
+				// cerr << "g["<<j<<"] = " << Deltajstar << " * " << xminusalpha << " * " << f << " = ";
+				g[j].first = Deltajstar * xminusalpha * f;
+				// cerr << g[j].first << "\n";
+				g[j].second += 1;
+			    }
+			}
+			// cerr << "Now -> " << evalhasse(g[j].first, r, s, alpha, beta, Ccache) << "\n";
+		    }
+		}
+	    }
+	}
+    }
+    // Return the poly of least weighted degree from g
+    unsigned int minweight = g[0].second;
+    unsigned int minindex = 0;
+    for (unsigned int i=1; i<=L; ++i) {
+	if (g[i].second <= minweight) {
+	    minweight = g[i].second;
+	    minindex = i;
+	}
+    }
+
+    return g[minindex].first;
+}
+
+// Find all polynomials of degree at most k that agree with the given
+// (index,share) pairs at at least t of the n points.  The notation is
+// from Venkatesan Guruswami and Madhu Sudan, "Improved Decoding of
+// Reed-Solomon and Algebraic-Geometry Codes".
+static vector<RecoveryPoly> findpolys(unsigned int k, unsigned int t,
+	const vector<unsigned short> &goodservers,
+	const vec_ZZ_p& indices, const vec_ZZ_p& shares, ZZ p1, ZZ p2)
+{
+    ZZ_pXY P;
+    char *naiveenv = getenv("PIRC_NAIVE");
+    if (naiveenv && atoi(naiveenv)) {
+	P = interpolate_naive(k, t, goodservers, indices, shares);
+    } else {
+	P = interpolate_kotter(k, t, goodservers, indices, shares);
+    }
+
+    // cerr << "factor(poly(0";
+    for(int j=0;j<=deg(P);++j) {
+	ZZ_pX x = coeff(P,j);
+	for(int i=0; i<=deg(x); ++i) {
+	    // cerr << " + " << coeff(x,i) << "*x^" << i << "*y^" << j;
+	}
+    }
+    // cerr << ", [x,y], IntMod(" << p1*p2 << ")));\n\n";
+    std::cerr << "Finding roots of resulting polynomial...\n";
 
     // It turns out that any polynomial phi(x) that we should be
     // returning (since phi is of degree at most k and agrees with the
@@ -308,6 +502,7 @@ static vector<RecoveryPoly> findpolys(unsigned int k, unsigned int t,
     // factor of P(x,y).  So we first find all roots for y of P(x,y)
     // which are polynomials of degree at most k.
     vec_ZZ_pX roots = findroots(P, k, p1, p2);
+    // cerr << "roots = " << roots << "\n";
 
     // For each of these roots, check how many input points it agrees
     // with.  If it's at least t, add it to the list of polys to return.
@@ -370,3 +565,40 @@ vector<PercyResult> HardRecover(unsigned int bytes_per_word, unsigned short t,
 
     return Hprime;
 }
+
+#ifdef TEST_RECOVER
+
+#include <sstream>
+main()
+{
+    ZZ modulus, one;
+    modulus = 10007;
+    one = 1;
+    ZZ_p::init(modulus);
+
+    stringstream ss(stringstream::in | stringstream::out);
+
+    vector<unsigned short> goodservers;
+    goodservers.push_back(1);
+    goodservers.push_back(2);
+    goodservers.push_back(3);
+    goodservers.push_back(4);
+    goodservers.push_back(5);
+    goodservers.push_back(6);
+    vec_ZZ_p indices, shares;
+    ss << "[ 1 2 3 4 5 6 ]";
+    ss >> indices;
+    ss << "[ 4 3 7507 1 2504 7 ]";
+    ss >> shares;
+    vector<RecoveryPoly> ret = findpolys(3, 5, goodservers, indices, shares,
+	    one, modulus);
+    for (vector<RecoveryPoly>::const_iterator iter = ret.begin(); iter != ret.end(); ++iter) {
+	cout << "{ " << iter->phi << ", [ ";
+	for (vector<unsigned short>::const_iterator gi = iter->G.begin(); gi != iter->G.end(); ++gi) {
+	    cout << *gi << " ";
+	}
+	cout << "] }\n";
+    }
+}
+
+#endif

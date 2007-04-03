@@ -102,14 +102,15 @@ vec_ZZ_pX rr_findroots(const ZZ_pXY &P, int degreebound)
     vec_ZZ_pX res;
     int t = 1;
 
+    ZZ_pXY P0 = backShiftX(P, minX(P));
     pi.push_back(-1);
     Deg.push_back(-1);
     Coeff.push_back(ZZ_p::zero());
-    Q.push_back(P);
+    Q.push_back(P0);
     int u = 0; 
 
     if (degreebound < 0) {
-	degreebound = degX(P);
+	degreebound = degX(P0);
     }
     dfs(res, u, pi, Deg, Coeff, Q, t, degreebound);
 

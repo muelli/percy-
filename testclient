@@ -38,6 +38,11 @@ elif [ "$4" = "prime" ]; then
     b=8192
     w=256
     tot=256
+elif [ "$4" = "smallprime" ]; then
+    n=1048576
+    b=4096
+    w=128
+    tot=256
 else
     n=2097152
     b=16384

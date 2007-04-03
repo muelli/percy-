@@ -2,7 +2,7 @@ Percy++ / PIR in C++
 
 Ian Goldberg <iang@cs.uwaterloo.ca>
 
-Version 0.6: 2007-03-14
+Version 0.7: 2007-04-03
 
 About Percy++
 -------------
@@ -89,7 +89,9 @@ from /dev/urandom is fine.
 If the PIRS_FAIL environment variable is set to a number (like 15), then
 with that percentage chance, each server will fail to respond.
 Similarly, if PIRS_BYZ is set to a number, then with that percentage
-chance, each server will return an incorrect answer.
+chance, each server will return an incorrect answer.  If PIRS_BYZN is
+set to a number, then exactly that many servers will return an incorrect
+answer.
 
 The pirclient program will write the block it computes to standard out.
 The testclient script is a simple wrapper to pirclient.  To use it,
@@ -119,6 +121,12 @@ address.
 
 Changelog
 ---------
+
+Version 0.7 (2007-04-03):
+    The Guruswami-Sudan implementation has been changed to a much more
+    effecient algorithm.  This saves about 70% of the runtime in the
+    presence of Byzantine servers.  Set the environment variable
+    PIRC_NAIVE=1 to revert to the old algorithm for comparison.
 
 Version 0.6 (2007-03-14):
     Thanks to M. Jason Hinek <mjhinek@alumni.uwaterloo.ca>, the

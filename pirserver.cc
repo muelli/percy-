@@ -63,17 +63,19 @@ int main(int argc, char **argv)
     // With probability $PIRS_FAIL/100, fail completely
     // With probability $PIRS_BYZ/100, be Byzantine
     unsigned long rndval = RandomBnd(100);
-    unsigned long failat = 0, byzat = 0;
+    unsigned long failat = 0, byzat = 0, byznum = 0;
     const char *failenv = getenv("PIRS_FAIL");
     if (failenv) failat = atoi(failenv);
     const char *byzenv = getenv("PIRS_BYZ");
     if (byzenv) byzat = atoi(byzenv);
+    const char *byznumenv = getenv("PIRS_BYZN");
+    if (byznumenv) byznum = atoi(byznumenv);
 
     if (rndval < failat) {
 	std::cerr << "Server " << servernum << " failing.\n";
 	exit(0);
     }
-    if (rndval < failat + byzat) {
+    if (rndval < failat + byzat || servernum <= byznum) {
 	std::cerr << "Server " << servernum << " Byzantine.\n";
 	server.be_byzantine();
     }
