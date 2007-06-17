@@ -20,6 +20,8 @@ LDLIBS=-lntl -lgmp
 
 TARGETS=pirserver pirclient splitdatabase
 
+RUNFILES=database database.* out.client out.real
+
 CLIENT_O=percyclient.o percyparams.o recover.o percyio.o rr_roots.o ZZ_pXY.o
 SERVER_O=percyserver.o percyparams.o datastore.o percyio.o
 
@@ -39,3 +41,6 @@ clean:
 
 veryclean: clean
 	-rm -f $(TARGETS)
+
+distclean: veryclean
+	-rm -f $(RUNFILES)

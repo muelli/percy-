@@ -23,11 +23,21 @@
 #include <sstream>
 #include <ZZ_p.h>
 #include "percyclient.h"
+#include "config.h"
 
 NTL_CLIENT
 
 int main(int argc, char **argv)
 {
+    int c;
+    for (c = 1; c < argc; c++) {
+	if (strcmp("--version", argv[c]) == 0) {
+	    std::cerr << "Percy++ pirclient version " << VERSION << std::endl;
+	    std::cerr << AUTHOR << std::endl;
+	    exit(0);
+	}
+    }
+
     // Ignore SIGPIPE
     signal(SIGPIPE, SIG_IGN);
 

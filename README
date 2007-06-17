@@ -2,7 +2,7 @@ Percy++ / PIR in C++
 
 Ian Goldberg <iang@cs.uwaterloo.ca>
 
-Version 0.7: 2007-04-03
+Version 0.7.1: 2007-06-17
 
 About Percy++
 -------------
@@ -121,6 +121,17 @@ address.
 
 Changelog
 ---------
+
+Version 0.7.1 (2007-06-17):
+
+    (Based on patches from Len Sassaman <Len.Sassaman@esat.kuleuven.be>)
+    Added support for *BSD stat(1) in testclient, and testclient now
+    does additional sanity checks and auto-generates the test database
+    if it doesn't exist (or isn't readable).  Added the makefile
+    argument "distclean" to clean up extraneous files.  Utilities now
+    display the current version number when given the argument
+    --version.  When recovering from Byzantine servers and HardRecover
+    is invoked, a command-line message is displayed.
 
 Version 0.7 (2007-04-03):
     The Guruswami-Sudan implementation has been changed to a much more

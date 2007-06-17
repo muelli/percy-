@@ -17,6 +17,74 @@
 ##  Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
 ##  02111-1307  USA
 
+## Sanity tests, from Len Sassaman
+
+## Make sure we've run "make":
+if test -e pirclient.cc -a ! -e pirclient -o -e pirclient.cc -a ! -e pirserver
+then
+   echo "Error:"
+   echo "You must build the Percy++ tools before running testclient."
+   echo "Please see the README for instructions."
+   exit 1
+fi
+
+## Make sure we can see the percy tools:
+if test ! -e pirclient -o ! -e pirserver
+then
+   echo "Error:"
+   echo "Cannot find local instances of Percy++ tools."
+   echo "Percy++ testclient must be invoked in the same directory"
+   echo "as the Percy++ tools, usually percy++-(version number)."
+   exit 1
+fi
+
+## Make sure we can call the percy tools:
+if test ! -x pirclient -o ! -x pirserver
+then
+   echo "Error:"
+   echo "Percy++ tools are not executable; please check permissions."
+   exit 1
+fi
+
+## Remove the database file if it's unreadable
+if test -e database -a ! -r database
+then
+   echo "Removing unreadable database."
+   rm -f database
+fi
+
+## Create the database if it's not there
+if test ! -e database
+then
+   dd if=/dev/urandom bs=2048 count=1024 of=database
+   echo "Created test database."
+fi
+
+## Do we have stat(1) at all?
+if ! stat --version >/dev/null 2>&1
+then
+    echo "Error:"
+    echo "You must have a working stat(1) to run the Percy++ tools."
+    echo "stat(1) can be obtained by building the GNU Coreutils."
+    echo "Please see http://www.gnu.org/software/coreutils/ for more info."
+    echo ""
+    echo "stat(1) does not exist on this system; exiting..."
+    exit 1
+fi
+
+## What flavour of stat(1) do we have?
+if stat --version 2>&1 | grep GNU >/dev/null; then
+    stattype=GNU
+else
+    stattype=BSD
+fi
+
+if [ "$1" = "--version" ]
+then
+    ./pirclient --version 2>&1 | sed 's/pirclient/testclient/' >&2
+    exit 0
+fi
+
 if [ $# -lt 2 ]; then
     echo "Usage: $0 n t [tau] [hybrid|prime]"
     exit 1
@@ -57,7 +125,11 @@ echo ./pirclient $n $b $w $1 $1 $2 $block $tau $4
 dd if=database bs=$b skip=$block count=1 > out.real 2>/dev/null
 
 # Check if any of the blocks output is the right one
-totsize=`stat -c %s out.client`
+if [ "$stattype" = "GNU" ]; then
+    totsize=`stat -c %s out.client`
+else
+    totsize=`stat -f %z out.client`
+fi
 numout=$[$totsize / $b]
 testblock=0
 while [ $testblock -lt $numout ]; do

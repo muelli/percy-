@@ -19,9 +19,19 @@
 #include <fstream>
 #include "datastore.h"
 #include "percyserver.h"
+#include "config.h"
 
 int main(int argc, char **argv)
 {
+    int c;
+    for (c = 1; c < argc; c++) {
+	if (strcmp("--version", argv[c]) == 0) {
+	    std::cerr << "Percy++ pirserver version " << VERSION << std::endl;
+	    std::cerr << AUTHOR << std::endl;
+	    exit(0);
+	}
+    }
+
     // Initialize NTL and the random number stream
     ZZ modinit;
     modinit = 257;

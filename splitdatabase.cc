@@ -20,6 +20,7 @@
 #include <sstream>
 #include <NTL/ZZ_pX.h>
 #include "percyio.h"
+#include "config.h"
 
 NTL_CLIENT
 
@@ -33,6 +34,16 @@ NTL_CLIENT
 // "dbname.1", "dbname.2", etc.
 int main(int argc, char **argv)
 {
+    int c;
+    for (c = 1; c < argc; c++) {
+	if (strcmp("--version", argv[c]) == 0) {
+	    std::cerr << "Percy++ splitdatabase version " << VERSION
+		<< std::endl;
+	    std::cerr << AUTHOR << std::endl;
+	    exit(0);
+	}
+    }
+
     if (argc < 4) {
 	std::cerr << "Usage: " << argv[0] << " database tau l [modulus]\n";
 	exit(1);

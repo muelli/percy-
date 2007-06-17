@@ -203,6 +203,7 @@ vector<PercyResult> PercyClient::process_replies(unsigned short h,
 	if (Hprime.empty()) {
 	    // We seem to have some Byzantine servers.  Try to identify
 	    // them with the expensive algorithm
+	    std::cerr << "Switching to HardRecover...\n";
 	    Hprime = HardRecover(bytes_per_word, t+tau, h, H, goodservers,
 		    answers[i], indices, p1, p2);
 	}
