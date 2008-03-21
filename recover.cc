@@ -193,6 +193,7 @@ vector<PercyResult> EasyRecover(unsigned int bytes_per_word, unsigned short t,
     return Hprime;
 }
 
+#if 0
 // Return the index of the first non-zero entry in this row, or -1 if
 // it's all zeros.
 static long first_non_zero(const vec_ZZ_p& R)
@@ -255,7 +256,6 @@ static vec_ZZ_p solvemat(mat_ZZ_p& M) {
     return soln;
 }
 
-#if 0
 // Construct a bivariate polynomial P(x,y) such that, for any polynomial
 // f(x) of degree at most k that agrees with at least t of the given
 // points, (y-f(x)) is a factor of P(x,y).  This version is the naive

@@ -161,15 +161,15 @@ F GSDecoder<F,vec_F,FX,FXY>::evalhasse(const FXY &g,
 	unsigned int r, unsigned int s,
 	F alpha, F beta, Ccache_t &Ccache)
 {
-    ZZ_p res;
+    F res;
     res = 0;
     int ydeg = deg(g);
     for (int j = ydeg; j >= (int)s; --j) {
-	const ZZ_pX &gj = coeff(g,j);
+	const FX &gj = coeff(g,j);
 	int xdeg = deg(gj);
 	// Use Horner's method to evaluate the inner sum (which is the
 	// coefficient of beta^{j-s})
-	ZZ_p resx;
+	F resx;
 	resx = 0;
 	for (int i = xdeg; i >= (int) r; --i) {
 	    resx *= alpha;
