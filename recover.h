@@ -56,7 +56,7 @@ static F C(Ccache_t &Ccache, unsigned int n, unsigned int k)
 	return Ci->second;
     }
     
-    F num, dem;
+    ZZ num, dem;
     num = 1;
     dem = 1;
     unsigned int i;
@@ -66,11 +66,11 @@ static F C(Ccache_t &Ccache, unsigned int n, unsigned int k)
 	dem *= (k-i);
     }
 
-    if (!IsZero(num)) {  // In case we're in a field of low characteristic
-	num /= dem;
-    }
-    Ccache[nk] = num;
-    return num;
+    num /= dem;
+    F res;
+    conv(res, num);
+    Ccache[nk] = res;
+    return res;
 }
 
 template <class F, class vec_F, class FX, class FXY>
