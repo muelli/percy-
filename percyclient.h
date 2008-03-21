@@ -23,6 +23,7 @@
 #include <vec_vec_ZZ_p.h>
 #include "percyresult.h"
 #include "percyparams.h"
+#include "gf28.h"
 
 NTL_CLIENT
 
@@ -38,7 +39,7 @@ public:
 
     // Send a request for the given block number (0-based) to the
     // servers connected with the ostreams in the given vector.
-    int send_request(unsigned int block_number,
+    int send_request(vector<unsigned int> block_numbers,
 	    std::vector<iostream*> &iosvec);
 
     // Receive the servers' replies.  Return k, the number of servers
@@ -47,18 +48,29 @@ public:
 
     // Process the server's replies, and return a new string
     // (of size params.bytes_per_block()) with the result.
-    vector<PercyResult> process_replies(unsigned short h, ZZ p1, ZZ p2);
+    vector< vector<PercyResult> > process_replies(unsigned short h,
+	    ZZ p1, ZZ p2);
 
     // Do all of the above in one shot
-    vector<PercyResult> fetch_block(unsigned int block_number,
+    vector< vector<PercyResult> > fetch_blocks(
+	    vector<unsigned int> block_numbers,
 	    std::vector<iostream*> &iosvec, ZZ p1, ZZ p2);
 
 private:
+    // Versions for GF(2^8)
+    int send_request_GF28(vector<unsigned int> block_numbers,
+	std::vector<iostream*> &iosvec);
+    unsigned short receive_replies_GF28(std::vector<iostream*> &iosvec);
+    vector< vector<PercyResult> > process_replies_GF28(unsigned short h);
+
     PercyParams params;
     unsigned short num_servers, t;
-    vec_ZZ_p indices;
+    unsigned short num_queries;
+    vec_ZZ_p *indicesp;
+    GF28_Element *indices_gf28;
     vector<unsigned short> goodservers;
-    vec_vec_ZZ_p answers;
+    vec_vec_ZZ_p *answersp;
+    GF28_Element *answers_gf28;
 };
 
 #endif

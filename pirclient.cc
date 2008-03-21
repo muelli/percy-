@@ -53,7 +53,7 @@ int main(int argc, char **argv)
     SetSeed(randzz);
 
     if (argc < 9) {
-	std::cerr << "Usage: " << argv[0] << " n b w l k t i tau [hybrid]\n";
+	std::cerr << "Usage: " << argv[0] << " n b w l k t i tau [hybrid|gf28]\n";
 	std::cerr << "   n = length of database (bytes)\n";
 	std::cerr << "   b = block size (bytes)\n";
 	std::cerr << "   w = word size (bits)\n";
@@ -65,15 +65,28 @@ int main(int argc, char **argv)
 	exit(1);
     }
 
-    unsigned int n = strtoul(argv[1], NULL, 10) * 8;
+    unsigned long long n = strtoull(argv[1], NULL, 10) * 8;
     unsigned int b = strtoul(argv[2], NULL, 10) * 8;
     unsigned int w = strtoul(argv[3], NULL, 10);
     unsigned int num_servers = strtoul(argv[4], NULL, 10);
     unsigned int k = strtoul(argv[5], NULL, 10);
     unsigned int t = strtoul(argv[6], NULL, 10);
-    unsigned int index = strtoul(argv[7], NULL, 10);
+    vector<unsigned int> indices;
+    istringstream iss(argv[7]);
+    while(1) {
+	unsigned int i;
+	iss >> i;
+	indices.push_back(i);
+	if (iss.eof()) break;
+    }
     unsigned int tau = strtoul(argv[8], NULL, 10);
     int do_hybrid = (argc > 9 && !strcmp(argv[9], "hybrid"));
+    int do_gf28 = (argc > 9 && !strcmp(argv[9], "gf28"));
+
+    if (do_gf28 && w != 8) {
+	std::cerr << "Error: w must be 8 for gf28.\n";
+	exit(1);
+    }
 
     if (n % b != 0 || b % w != 0) {
 	std::cerr << "Error: b must divide n and w must divide b.\n";
@@ -107,6 +120,18 @@ int main(int argc, char **argv)
     } else if (w == 1024) {
 	p1s = "14710132128541592475387440366744304824352604767753216777226640368050037133836174845369895150342922969891066267019166301546403100960464521216972792406229873 ";
 	p2s = "23338263930359653850870152235447790059566299230626918909126959284529524161146399225204807633841208114717867386116272471253667601589249734409576687328158817 ";
+    } else if (do_gf28) {
+	p1s = "1 ";
+	p2s = "256 ";
+    } else if (w == 8 && !do_hybrid) {
+	p1s = "1 ";
+	p2s = "257 ";
+    } else if (w == 16 && !do_hybrid) {
+	p1s = "1 ";
+	p2s = "65537 ";
+    } else if (w == 32 && !do_hybrid) {
+	p1s = "1 ";
+	p2s = "4294967311 ";
     } else if (w == 96 && !do_hybrid) {
 	p1s = "1 ";
 	p2s = "79228162514264337593543950397 ";
@@ -156,9 +181,11 @@ int main(int argc, char **argv)
 	exit(1);
     }
 
-    if (index >= num_blocks) {
-	std::cerr << "Error: i must be less than " << num_blocks << ".\n";
-	exit(1);
+    for (size_t q = 0; q < indices.size(); ++q) {
+	if (indices[q] >= num_blocks) {
+	    std::cerr << "Error: i must be less than " << num_blocks << ".\n";
+	    exit(1);
+	}
     }
 
     // Set up the iostreams to the servers.  In reality, you'd probably
@@ -173,7 +200,7 @@ int main(int argc, char **argv)
 	if (tau > 0) {
 	    sprintf(dbname, "database.%u tau", j+1);
 	}
-	sprintf(command, "./pirserver -%u %s", j+1, dbname);
+	sprintf(command, "time ./pirserver -%u %s", j+1, dbname);
 	serverstreams.push_back(new redi::pstream(command));
     }
 
@@ -185,19 +212,23 @@ int main(int argc, char **argv)
 	params = new PercyParams(words_per_block, num_blocks, tau, modulus);
     }
     PercyClient client(*params, num_servers, t);
-    vector<PercyResult> results = client.fetch_block(index, serverstreams,
-	    p1, p2);
+    vector< vector<PercyResult> > results = client.fetch_blocks(indices,
+	    serverstreams, p1, p2);
     int ret = 0;
-    if (results.empty()) {
-	std::cerr << "PIR query failed.\n";
-	ret = 1;
-    } else if (results.size() > 1) {
-	std::cerr << results.size() << " possible blocks returned.\n";
-    }
-    // Output the retrieved block(s)
-    vector<PercyResult>::const_iterator resiter;
-    for (resiter = results.begin(); resiter != results.end(); ++resiter) {
-	std::cout << resiter->sigma;
+    int num_res = results.size();
+    for (int r=0; r < num_res; ++r) {
+	if (results[r].empty()) {
+	    std::cerr << "PIR query failed.\n";
+	    ret = 1;
+	} else if (results[r].size() > 1) {
+	    std::cerr << results[r].size() << " possible blocks returned.\n";
+	}
+	// Output the retrieved block(s)
+	vector<PercyResult>::const_iterator resiter;
+	for (resiter = results[r].begin(); resiter != results[r].end();
+		++resiter) {
+	    std::cout << resiter->sigma;
+	}
     }
 
     // Clean up

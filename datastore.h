@@ -48,6 +48,14 @@ public:
     // Retrieve the cth word of the jth block of the database as a ZZ
     // Both c and j are 0-based.
     ZZ get_word(unsigned int c, unsigned int j);
+
+    // Get the pointer to the data
+    const unsigned char *get_data() const { return database + offset; }
+
+    // Get the size params
+    unsigned int get_bytes_per_word() { return bytes_per_word; }
+    unsigned int get_words_per_block() { return words_per_block; }
+    unsigned int get_num_blocks() { return num_blocks; }
 };
 
 #endif

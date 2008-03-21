@@ -80,6 +80,9 @@ public:
     bool modulus_match(ZZ testmod) const {
 	return modulus == testmod;
     }
+    bool is_gf28() const {
+	return modulus == 256;
+    }
     // Encrypt the given plaintext.  The current ZZ_p context must be
     // modsqctx.
     ZZ_p encrypt(ZZ plaintext) const {

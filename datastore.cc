@@ -67,6 +67,12 @@ FileDataStore::FileDataStore(const char *filename, const PercyParams &params,
 	exit(1);
     }
     totbytes = bytes_per_word * words_per_block * num_blocks;
+    struct stat st;
+    fstat(dbfd, &st);
+    if (st.st_size < (off_t)totbytes+offset) {
+        fprintf(stderr, "Database too small!\n");
+        exit(1);
+    }
     database = (unsigned char *)mmap(NULL, totbytes+offset, PROT_READ,
 	    MAP_SHARED, dbfd, 0);
     if (database == MAP_FAILED) {

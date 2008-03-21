@@ -22,6 +22,7 @@
 #include <vec_ZZ_p.h>
 #include "datastore.h"
 #include "percyparams.h"
+#include "gf28.h"
 
 NTL_CLIENT
 
@@ -40,10 +41,14 @@ public:
     void handle_request(PercyParams &params, istream &is, ostream &os);
 
 private:
+    void handle_request_GF28(PercyParams &params, istream &is,
+	ostream &os);
+
     bool byzantine;
     DataStore &datastore;
-    ZZ_p compute_one(bool hybrid_protection, unsigned int num_blocks,
-	    const vec_ZZ_p &inputvector, unsigned int c);
+    void compute_one(ZZ_p *value, bool hybrid_protection,
+	unsigned int num_blocks, unsigned short num_queries,
+	const vec_ZZ_p *inputvector, unsigned int c);
 };
 
 #endif

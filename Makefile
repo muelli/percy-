@@ -22,8 +22,10 @@ TARGETS=pirserver pirclient splitdatabase
 
 RUNFILES=database database.* out.client out.real
 
-CLIENT_O=percyclient.o percyparams.o recover.o percyio.o rr_roots.o ZZ_pXY.o
-SERVER_O=percyserver.o percyparams.o datastore.o percyio.o
+CLIENT_O=percyclient.o percyparams.o recover.o percyio.o rr_roots.o ZZ_pXY.o \
+		gf28.o
+SERVER_O=percyserver.o percyparams.o datastore.o percyio.o gf28.o
+SRCS=$(subst .o,.cc,$(CLIENT_O) $(SERVER_O) pirclient.o pirserver.o splitdatabase.o percyio.o)
 
 all: $(TARGETS)
 
@@ -44,3 +46,37 @@ veryclean: clean
 
 distclean: veryclean
 	-rm -f $(RUNFILES)
+
+depend:
+	makedepend -Y -- $(CXXFLAGS) -- $(SRCS) 2>/dev/null
+
+# DO NOT DELETE
+
+percyclient.o: /usr/local/include/NTL/vec_vec_ZZ_p.h
+percyclient.o: /usr/local/include/NTL/ZZ_pX.h recover.h
+percyclient.o: /usr/local/include/NTL/vec_ZZ_p.h percyresult.h gf28.h
+percyclient.o: percyclient.h percyparams.h
+percyparams.o: percyparams.h percyio.h /usr/local/include/NTL/ZZ.h
+recover.o: /usr/local/include/NTL/mat_ZZ_p.h /usr/local/include/NTL/ZZ_pX.h
+recover.o: rr_roots.h ZZ_pXY.h /usr/local/include/NTL/ZZ_pXFactoring.h
+recover.o: recover.h /usr/local/include/NTL/vec_ZZ_p.h percyresult.h gf28.h
+percyio.o: percyio.h /usr/local/include/NTL/ZZ.h
+rr_roots.o: ZZ_pXY.h /usr/local/include/NTL/ZZ_pX.h
+rr_roots.o: /usr/local/include/NTL/ZZ_pXFactoring.h
+ZZ_pXY.o: ZZ_pXY.h /usr/local/include/NTL/ZZ_pX.h
+ZZ_pXY.o: /usr/local/include/NTL/ZZ_pXFactoring.h
+gf28.o: gf28.h
+percyserver.o: /usr/local/include/NTL/vec_ZZ_p.h percyserver.h datastore.h
+percyserver.o: /usr/local/include/NTL/ZZ.h percyparams.h
+percyparams.o: percyparams.h percyio.h /usr/local/include/NTL/ZZ.h
+datastore.o: datastore.h /usr/local/include/NTL/ZZ.h percyparams.h percyio.h
+percyio.o: percyio.h /usr/local/include/NTL/ZZ.h
+gf28.o: gf28.h
+pirclient.o: pstream.h /usr/local/include/NTL/ZZ_p.h percyclient.h
+pirclient.o: /usr/local/include/NTL/vec_vec_ZZ_p.h percyresult.h
+pirclient.o: percyparams.h gf28.h config.h version.h
+pirserver.o: datastore.h /usr/local/include/NTL/ZZ.h percyparams.h
+pirserver.o: percyserver.h /usr/local/include/NTL/vec_ZZ_p.h config.h
+pirserver.o: version.h
+splitdatabase.o: percyio.h /usr/local/include/NTL/ZZ.h config.h version.h
+percyio.o: percyio.h /usr/local/include/NTL/ZZ.h

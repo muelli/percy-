@@ -21,6 +21,7 @@
 #include <vector>
 #include <vec_ZZ_p.h>
 #include "percyresult.h"
+#include "gf28.h"
 
 NTL_CLIENT
 
@@ -32,5 +33,9 @@ vector<PercyResult> HardRecover(unsigned int bytes_per_word, unsigned short t,
 	unsigned short h, const vector<PercyResult> &H,
 	const vector<unsigned short> &goodservers,
 	const vec_ZZ_p &values, const vec_ZZ_p &indices, ZZ p1, ZZ p2);
+
+vector<PercyResult> EasyRecover_GF28(unsigned short t,
+	unsigned short h, const vector<PercyResult> &H,
+	const GF28_Element *values, const GF28_Element *indices);
 
 #endif

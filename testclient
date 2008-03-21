@@ -106,11 +106,26 @@ elif [ "$4" = "prime" ]; then
     b=8192
     w=256
     tot=256
-elif [ "$4" = "smallprime" ]; then
+elif [ "$4" = "w128" ]; then
     n=1048576
     b=4096
     w=128
     tot=256
+elif [ "$4" = "w8" ]; then
+    n=1048576
+    b=1024
+    w=8
+    tot=1024
+elif [ "$4" = "gf28" ]; then
+    n=1073741824
+    b=32768
+    w=8
+    tot=32768
+elif [ "$4" = "w32" ]; then
+    n=1048576
+    b=2048
+    w=32
+    tot=512
 else
     n=2097152
     b=16384
@@ -118,11 +133,14 @@ else
     tot=128
 fi
 
-block=$[$RANDOM % $tot]
+# Use the following to test two simultaneous block fetches
+block="$[$RANDOM % $tot] $[$RANDOM % $tot]"
+#block="$[$RANDOM % $tot]"
 
-echo ./pirclient $n $b $w $1 $1 $2 $block $tau $4
-./pirclient $n $b $w $1 $1 $2 $block $tau $4 > out.client && \
-dd if=database bs=$b skip=$block count=1 > out.real 2>/dev/null
+echo ./pirclient $n $b $w $1 $1 $2 \"$block\" $tau $4
+./pirclient $n $b $w $1 $1 $2 "$block" $tau $4 > out.client && \
+true > out.real && \
+for block0 in $block; do dd if=database bs=$b skip=$block0 count=1 >> out.real 2>/dev/null; done
 
 # Check if any of the blocks output is the right one
 if [ "$stattype" = "GNU" ]; then
@@ -130,10 +148,15 @@ if [ "$stattype" = "GNU" ]; then
 else
     totsize=`stat -f %z out.client`
 fi
-numout=$[$totsize / $b]
+if [ "$stattype" = "GNU" ]; then
+    bsize=`stat -c %s out.real`
+else
+    bsize=`stat -f %z out.real`
+fi
+numout=$[$totsize / $bsize]
 testblock=0
 while [ $testblock -lt $numout ]; do
-    if cmp <(dd if=out.client bs=$b count=1 skip=$testblock 2>/dev/null) \
+    if cmp <(dd if=out.client bs=$bsize count=1 skip=$testblock 2>/dev/null) \
     	out.real >/dev/null ; then
 	testblock=$[$testblock + 1]
 	echo "Success matching output block $testblock of $numout"
