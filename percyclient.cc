@@ -398,8 +398,8 @@ vector< vector<PercyResult> > PercyClient::process_replies_GF28(
 				(q*words_per_block + i)*num_servers + ix,
 				1));
 		}
-		//Hprime = decoder.HardRecover(1, t+tau, h, H,
-			//goodservers, answers_vec, indices_vec);
+		Hprime = decoder.HardRecover(1, t+tau, h, H,
+			goodservers, answers_vec, indices_vec);
 	    }
 	    if (Hprime.empty()) {
 		// Unable to recover data

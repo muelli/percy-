@@ -18,15 +18,9 @@
 #ifndef __RR_ROOTS_H__
 #define __RR_ROOTS_H__
 
+#include <vector>
 #include "FXY.h"
 
 NTL_CLIENT
-
-// Return a list of roots for y of the bivariate polynomial P(x,y).
-// If degreebound >= 0, only return those roots with degree <=
-// degreebound.  The global ZZ_pContext should already be set to
-// p1 * p2, where p2 is prime, and p1 is either prime or 1.
-// This routine may also return some spurious values.
-vec_ZZ_pX findroots(const ZZ_pXY &P, int degreebound, ZZ p1, ZZ p2);
 
 #endif

@@ -22,7 +22,8 @@
 #include <map>
 #include <string>
 #include <vec_ZZ_p.h>
-#include <GF2EX.h>
+#include <NTL/ZZ_pXFactoring.h>
+#include <NTL/GF2EXFactoring.h>
 #include "percyresult.h"
 #include "FXY.h"
 #include "rr_roots.h"
@@ -87,6 +88,8 @@ class GSDecoder {
 		unsigned int bytes_per_word);
 
     private:
+	struct DT {};
+
 	static vector<unsigned short> intersect(
 		const vector<unsigned short> &v1,
 		const vector<unsigned short> &v2);
@@ -117,11 +120,45 @@ class GSDecoder {
 	F evalhasse(const FXY &g, unsigned int r, unsigned int s,
 		F alpha, F beta, Ccache_t &Ccache);
 
+	// Depth-first search on the tree of coefficients
+	void dfs(vector<FX> &res,
+		int u, 
+		vector<int> &pi, 
+		vector<int> &Deg,
+		vector<F> &Coeff, 
+		vector<FXY> &Q, 
+		int &t, 
+		int degreebound);
+
+	// Return a list of roots for y of the bivariate polynomial P(x,y).
+	// If degreebound >= 0, only return those roots with degree <=
+	// degreebound.  This routine only works over fields F.
+	vector<FX> rr_findroots(const FXY &P, int degreebound);
+
+	// Return a list of roots for y of the bivariate polynomial P(x,y).
+	// If degreebound >= 0, only return those roots with degree <=
+	// degreebound.  This routine handles the case where F is the
+	// integers mod p1*p2.
+	// This routine may also return some spurious values.
+	vector<FX> findroots(const FXY &P, int degreebound);
+
 	ZZ p1, p2;
 };
 
 typedef GSDecoder<ZZ_p, vec_ZZ_p, ZZ_pX, ZZ_pXY> GSDecoder_ZZ_p;
 typedef GSDecoder<GF2E, vec_GF2E, GF2EX, GF2EXY> GSDecoder_GF2E;
+
+template<>
+struct GSDecoder_ZZ_p::DT {
+    typedef vec_ZZ_pX vec_FX;
+    typedef vec_pair_ZZ_pX_long vec_pair_FX_long;
+};
+
+template<>
+struct GSDecoder_GF2E::DT {
+    typedef vec_GF2EX vec_FX;
+    typedef vec_pair_GF2EX_long vec_pair_FX_long;
+};
 
 // Compute the intersection of the two *strictly sorted* vectors v1 and v2
 template<class F, class vec_F, class FX, class FXY>
@@ -333,13 +370,13 @@ vector< RecoveryPoly<FX> > GSDecoder<F,vec_F,FX,FXY>::findpolys(unsigned int k,
     // input data on at least t points) is such that (y - phi(x)) is a
     // factor of P(x,y).  So we first find all roots for y of P(x,y)
     // which are polynomials of degree at most k.
-    vec_ZZ_pX roots = findroots(P, k, p1, p2);
+    vector<FX> roots = findroots(P, k);
     // cerr << "roots = " << roots << "\n";
 
     // For each of these roots, check how many input points it agrees
     // with.  If it's at least t, add it to the list of polys to return.
     vector< RecoveryPoly<FX> > polys;
-    unsigned int numroots = roots.length();
+    unsigned int numroots = roots.size();
     for (unsigned int i=0; i<numroots; ++i) {
 	if (deg(roots[i]) > (long)k) continue;
 	vector<unsigned short>::const_iterator gooditer;
@@ -397,6 +434,112 @@ vector<PercyResult> GSDecoder<F,vec_F,FX,FXY>::HardRecover(
     }
 
     return Hprime;
+}
+
+// Depth-first search on the tree of coefficients
+template<class F, class vec_F, class FX, class FXY>
+void GSDecoder<F,vec_F,FX,FXY>::dfs(vector<FX> &res,
+		int u, 
+		vector<int> &pi, 
+		vector<int> &Deg,
+		vector<F> &Coeff, 
+		vector<FXY> &Q, 
+		int &t, 
+		int degreebound)
+{
+#ifdef TEST_RR
+    cout << "\nVertex " << u << ": pi[" << u << "] = " << pi[u] <<
+	", deg[" << u << "] = " << Deg[u] << ", Coeff[" << u <<
+	"] = " << Coeff[u] << "\n";
+    cout << "Q[" << u << "] = " << Q[u] << "\n";
+#endif
+    // if Q_u(x,0) == 0 then output y-root
+    if ( IsZero(Q[u]) || IsZero(Q[u].rep[0])) { 
+	// Output f_u[x]
+
+	FX fux;
+	while (Deg[u] >= 0) {
+	    SetCoeff(fux, Deg[u], Coeff[u]);
+	    u = pi[u];
+	}
+#ifdef TEST_RR
+	cout << "Outputting " << fux << "\n";
+#endif
+	res.push_back(fux);
+    } else if (degreebound < 0 || Deg[u] < degreebound) {
+	// Construct Q_u(0,y)
+	FX Qu0y;
+	int degqu = deg(Q[u]);
+	for (int d = 0; d <= degqu; ++d) {
+	    SetCoeff(Qu0y, d, coeff(Q[u].rep[d], 0));
+	}
+      
+#ifdef TEST_RR
+	cout << "Q[" << u << "](0,y) = " << Qu0y << "\n";
+#endif
+	// Find its roots
+	vec_F rootlist =
+	    findroots_FX<F,vec_F,FX,
+		typename DT::vec_FX,typename DT::vec_pair_FX_long>(Qu0y);
+#ifdef TEST_RR
+	cout << "Rootlist = " << rootlist << "\n";
+#endif
+	int numroots = rootlist.length();
+	for (int r=0; r<numroots; ++r) {
+	    // For each root a, recurse on <<Q[u](x, x*y + a)>>
+	    // where <<Q>> is Q/x^k for the maximal k such that the
+	    // division goes evenly.
+	    int v = t;
+	    ++t;
+	    pi.push_back(u);
+	    Deg.push_back(Deg[u]+1);
+	    Coeff.push_back(rootlist[r]);
+	    // mapit(Q(x,y), a) computes <<Q(x, x*y + a)>>
+	    Q.push_back(mapit(Q[u], rootlist[r]));
+	    dfs(res, v, pi, Deg, Coeff, Q, t, degreebound);
+	}
+    }
+}
+
+// Return a list of roots for y of the bivariate polynomial P(x,y).
+// If degreebound >= 0, only return those roots with degree <=
+// degreebound.  This routine only works over fields F.
+template<class F, class vec_F, class FX, class FXY>
+vector<FX> GSDecoder<F,vec_F,FX,FXY>::rr_findroots(
+	const FXY &P, int degreebound)
+{
+    vector<int> pi;
+    vector<int> Deg;
+    vector<F> Coeff;
+    vector<FXY> Q;
+    vector<FX> res;
+    int t = 1;
+
+    FXY P0 = backShiftX(P, minX(P));
+    pi.push_back(-1);
+    Deg.push_back(-1);
+    Coeff.push_back(F::zero());
+    Q.push_back(P0);
+    int u = 0; 
+
+    if (degreebound < 0) {
+	degreebound = degX(P0);
+    }
+    dfs(res, u, pi, Deg, Coeff, Q, t, degreebound);
+
+    return res;
+}
+
+
+// Return a list of roots for y of the bivariate polynomial P(x,y).
+// If degreebound >= 0, only return those roots with degree <=
+// degreebound.  This routine handles the case where F is the
+// integers mod p1*p2.
+// This routine may also return some spurious values.
+template<class F, class vec_F, class FX, class FXY>
+vector<FX> GSDecoder<F,vec_F,FX,FXY>::findroots(const FXY &P, int degreebound)
+{
+    return rr_findroots(P, degreebound);
 }
 
 vector<PercyResult> EasyRecover_GF28(unsigned short t,
