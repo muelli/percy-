@@ -110,6 +110,12 @@ void PercyServer::handle_request_GF28(PercyParams &params, istream &is,
 	//fprintf(stderr, "%d.%3d msec computation\n", td/1000, td%1000);
     }
 
+    if (byzantine) {
+	for (unsigned int i=0; i<words_per_block*num_queries; ++i) {
+	    outputvector[i]++;
+	}
+    }
+
     os.write((char *)outputvector, words_per_block*num_queries);
     os.flush();
 }

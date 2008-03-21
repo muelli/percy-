@@ -26,7 +26,6 @@
 #include <NTL/GF2EXFactoring.h>
 #include "percyresult.h"
 #include "FXY.h"
-#include "rr_roots.h"
 #include "gf28.h"
 
 NTL_CLIENT
@@ -67,7 +66,9 @@ static F C(Ccache_t &Ccache, unsigned int n, unsigned int k)
 	dem *= (k-i);
     }
 
-    num /= dem;
+    if (!IsZero(num)) {  // In case we're in a field of low characteristic
+	num /= dem;
+    }
     Ccache[nk] = num;
     return num;
 }
@@ -86,6 +87,19 @@ class GSDecoder {
 
 	static string append(const string &s, const F &wz,
 		unsigned int bytes_per_word);
+
+	// Return a list of roots for y of the bivariate polynomial P(x,y).
+	// If degreebound >= 0, only return those roots with degree <=
+	// degreebound.  This routine handles the case where F is the
+	// integers mod p1*p2 as well as fields.
+	// This routine may also return some spurious values.
+	//
+	// This is an implementation of the Roth-Ruckenstein algorithm
+	// for finding roots of bivariate polynomials, as explained in section
+	// IX of:  R. J. McEliece. The Guruswami-Sudan Decoding Algorithm for
+	// Reed-Solomon Codes. IPN Progress Report 42-153, May 15, 2003.
+	// http://citeseer.ist.psu.edu/mceliece03guruswamisudan.html
+	vector<FX> findroots(const FXY &P, int degreebound);
 
     private:
 	struct DT {};
@@ -134,13 +148,6 @@ class GSDecoder {
 	// If degreebound >= 0, only return those roots with degree <=
 	// degreebound.  This routine only works over fields F.
 	vector<FX> rr_findroots(const FXY &P, int degreebound);
-
-	// Return a list of roots for y of the bivariate polynomial P(x,y).
-	// If degreebound >= 0, only return those roots with degree <=
-	// degreebound.  This routine handles the case where F is the
-	// integers mod p1*p2.
-	// This routine may also return some spurious values.
-	vector<FX> findroots(const FXY &P, int degreebound);
 
 	ZZ p1, p2;
 };
@@ -534,8 +541,14 @@ vector<FX> GSDecoder<F,vec_F,FX,FXY>::rr_findroots(
 // Return a list of roots for y of the bivariate polynomial P(x,y).
 // If degreebound >= 0, only return those roots with degree <=
 // degreebound.  This routine handles the case where F is the
-// integers mod p1*p2.
+// integers mod p1*p2 as well as fields.
 // This routine may also return some spurious values.
+//
+// This is an implementation of the Roth-Ruckenstein algorithm
+// for finding roots of bivariate polynomials, as explained in section
+// IX of:  R. J. McEliece. The Guruswami-Sudan Decoding Algorithm for
+// Reed-Solomon Codes. IPN Progress Report 42-153, May 15, 2003.
+// http://citeseer.ist.psu.edu/mceliece03guruswamisudan.html
 template<class F, class vec_F, class FX, class FXY>
 vector<FX> GSDecoder<F,vec_F,FX,FXY>::findroots(const FXY &P, int degreebound)
 {

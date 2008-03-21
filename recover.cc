@@ -399,15 +399,16 @@ vector<ZZ_pX> GSDecoder_ZZ_p::findroots(
     return roots;
 }
 
-#ifdef TEST_RECOVER
+#ifdef TEST_FINDPOLYS
 
 #include <sstream>
-main()
+int main()
 {
     ZZ modulus, one;
     modulus = 10007;
     one = 1;
     ZZ_p::init(modulus);
+    GSDecoder_ZZ_p decoder(one, modulus);
 
     stringstream ss(stringstream::in | stringstream::out);
 
@@ -423,9 +424,8 @@ main()
     ss >> indices;
     ss << "[ 4 3 7507 1 2504 7 ]";
     ss >> shares;
-    vector<RecoveryPoly> ret = findpolys(3, 5, goodservers, indices, shares,
-	    one, modulus);
-    for (vector<RecoveryPoly>::const_iterator iter = ret.begin(); iter != ret.end(); ++iter) {
+    vector<RecoveryPoly<ZZ_pX> > ret = decoder.findpolys(3, 5, goodservers, indices, shares);
+    for (vector<RecoveryPoly<ZZ_pX> >::const_iterator iter = ret.begin(); iter != ret.end(); ++iter) {
 	cout << "{ " << iter->phi << ", [ ";
 	for (vector<unsigned short>::const_iterator gi = iter->G.begin(); gi != iter->G.end(); ++gi) {
 	    cout << *gi << " ";
@@ -434,4 +434,34 @@ main()
     }
 }
 
+#endif
+
+#ifdef TEST_RR
+
+// Test the algorithm on the Example 15 from the McElice paper.
+int main()
+{
+    ZZ modulus;
+    modulus = 19;
+    ZZ p1;
+    p1 = 1;
+    ZZ_p::init(modulus);
+    GSDecoder_ZZ_p decoder(p1, modulus);
+
+    stringstream ss(stringstream::in | stringstream::out);
+    ZZ_pXY P;
+
+    ss << "[[4 12 5 11 8 13] [14 14 9 16 8] [14 13 1] [2 11 1] [17]] ";
+    ss >> P;
+
+    vector<ZZ_pX> roots = decoder.findroots(P, 1);
+    cout << "\nRoots found:\n";
+    for (unsigned int i=0; i<roots.size(); ++i) {
+	cout << roots[i] << endl;
+    }
+
+    cout << "\nExpected output (in some order):\n";
+    cout << "[18 14]\n[14 16]\n[8 8]\n";
+    return 0;
+}
 #endif

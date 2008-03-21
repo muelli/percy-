@@ -382,6 +382,17 @@ vector< vector<PercyResult> > PercyClient::process_replies_GF28(
 		std::cerr << "Switching to HardRecover...\n";
 		GSDecoder_GF2E decoder;
 
+		// Initialize the GF2E modulus to the one used by AES
+		GF2X AES_P;
+		SetCoeff(AES_P, 8, 1);
+		SetCoeff(AES_P, 4, 1);
+		SetCoeff(AES_P, 3, 1);
+		SetCoeff(AES_P, 1, 1);
+		SetCoeff(AES_P, 0, 1);
+
+		GF2E::init(AES_P);
+		GF2X::HexOutput = 1;
+
 		// Convert the raw bytes to vec_GF2E
 		vec_GF2E indices_vec;
 		indices_vec.SetLength(num_servers);

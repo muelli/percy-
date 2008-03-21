@@ -22,8 +22,7 @@ TARGETS=pirserver pirclient splitdatabase
 
 RUNFILES=database database.* out.client out.real
 
-CLIENT_O=percyclient.o percyparams.o recover.o percyio.o rr_roots.o FXY.o \
-		gf28.o
+CLIENT_O=percyclient.o percyparams.o recover.o percyio.o FXY.o gf28.o
 SERVER_O=percyserver.o percyparams.o datastore.o percyio.o gf28.o
 SRCS=$(subst .o,.cc,$(CLIENT_O) $(SERVER_O) pirclient.o pirserver.o splitdatabase.o percyio.o)
 
@@ -37,6 +36,9 @@ pirclient: pirclient.o $(CLIENT_O)
 
 splitdatabase: splitdatabase.o percyio.o
 	g++ -o $@ $^ $(LDLIBS)
+
+rr_test: recover.cc FXY.o gf28.o
+	g++ $(CXXFLAGS) -DTEST_RR -o $@ $^ $(LDLIBS)
 
 clean:
 	-rm -f *.o
@@ -54,16 +56,12 @@ depend:
 
 percyclient.o: /usr/local/include/NTL/vec_vec_ZZ_p.h
 percyclient.o: /usr/local/include/NTL/ZZ_pX.h recover.h
-percyclient.o: /usr/local/include/NTL/vec_ZZ_p.h
-percyclient.o: /usr/local/include/NTL/GF2EX.h percyresult.h FXY.h rr_roots.h
-percyclient.o: gf28.h percyclient.h percyparams.h
+percyclient.o: /usr/local/include/NTL/vec_ZZ_p.h percyresult.h FXY.h gf28.h
+percyclient.o: percyclient.h percyparams.h
 percyparams.o: percyparams.h percyio.h /usr/local/include/NTL/ZZ.h
-recover.o: /usr/local/include/NTL/mat_ZZ_p.h /usr/local/include/NTL/ZZ_pX.h
-recover.o: recover.h /usr/local/include/NTL/vec_ZZ_p.h
-recover.o: /usr/local/include/NTL/GF2EX.h percyresult.h FXY.h rr_roots.h
+recover.o: recover.h /usr/local/include/NTL/vec_ZZ_p.h percyresult.h FXY.h
 recover.o: gf28.h
 percyio.o: percyio.h /usr/local/include/NTL/ZZ.h
-rr_roots.o: rr_roots.h FXY.h
 FXY.o: FXY.h
 gf28.o: gf28.h
 percyserver.o: /usr/local/include/NTL/vec_ZZ_p.h percyserver.h datastore.h
