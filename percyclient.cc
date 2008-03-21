@@ -377,6 +377,31 @@ vector< vector<PercyResult> > PercyClient::process_replies_GF28(
 		    indices_gf28 + q*num_servers);
 	    // std::cerr << "easyrecover returned " << res << "\n";
 	    if (Hprime.empty()) {
+		// We seem to have some Byzantine servers.  Try to identify
+		// them with the expensive algorithm
+		std::cerr << "Switching to HardRecover...\n";
+		GSDecoder_GF2E decoder;
+
+		// Convert the raw bytes to vec_GF2E
+		vec_GF2E indices_vec;
+		indices_vec.SetLength(num_servers);
+		for (int ix=0; ix<num_servers; ++ix) {
+		    conv(indices_vec[ix],
+			    GF2XFromBytes(indices_gf28 + q*num_servers + ix,
+				1));
+		}
+		vec_GF2E answers_vec;
+		answers_vec.SetLength(num_servers);
+		for (int ix=0; ix<num_servers; ++ix) {
+		    conv(answers_vec[ix],
+			    GF2XFromBytes(answers_gf28 +
+				(q*words_per_block + i)*num_servers + ix,
+				1));
+		}
+		//Hprime = decoder.HardRecover(1, t+tau, h, H,
+			//goodservers, answers_vec, indices_vec);
+	    }
+	    if (Hprime.empty()) {
 		// Unable to recover data
 		std::cerr << "Too few honest servers to recover data!\n";
 		allH.clear();
@@ -426,8 +451,9 @@ vector< vector<PercyResult> > PercyClient::process_replies(unsigned short h,
 		// We seem to have some Byzantine servers.  Try to identify
 		// them with the expensive algorithm
 		std::cerr << "Switching to HardRecover...\n";
-		Hprime = HardRecover(bytes_per_word, t+tau, h, H, goodservers,
-			answersp[q][i], indicesp[q], p1, p2);
+		GSDecoder_ZZ_p decoder(p1, p2);
+		Hprime = decoder.HardRecover(bytes_per_word, t+tau, h, H,
+			goodservers, answersp[q][i], indicesp[q]);
 	    }
 	    if (Hprime.empty()) {
 		// Still unable to recover data

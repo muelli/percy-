@@ -134,8 +134,8 @@ else
 fi
 
 # Use the following to test two simultaneous block fetches
-block="$[$RANDOM % $tot] $[$RANDOM % $tot]"
-#block="$[$RANDOM % $tot]"
+#block="$[$RANDOM % $tot] $[$RANDOM % $tot]"
+block="$[$RANDOM % $tot]"
 
 echo ./pirclient $n $b $w $1 $1 $2 \"$block\" $tau $4
 ./pirclient $n $b $w $1 $1 $2 "$block" $tau $4 > out.client && \

@@ -18,7 +18,7 @@
 #ifndef __RR_ROOTS_H__
 #define __RR_ROOTS_H__
 
-#include "ZZ_pXY.h"
+#include "FXY.h"
 
 NTL_CLIENT
 

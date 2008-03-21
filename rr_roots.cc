@@ -23,7 +23,8 @@
 
 #include <sstream>
 #include <vector>
-#include "ZZ_pXY.h"
+#include <NTL/ZZ_pXFactoring.h>
+#include "rr_roots.h"
 
 NTL_CLIENT
 
@@ -68,7 +69,9 @@ static void dfs(vec_ZZ_pX &res,
 	cout << "Q[" << u << "](0,y) = " << Qu0y << "\n";
 #endif
 	// Find its roots
-	vec_ZZ_p rootlist = findroots(Qu0y);
+	vec_ZZ_p rootlist =
+	    findroots_FX<ZZ_p,vec_ZZ_p,ZZ_pX,vec_ZZ_pX,vec_pair_ZZ_pX_long>
+	    (Qu0y);
 #ifdef TEST_RR
 	cout << "Rootlist = " << rootlist << "\n";
 #endif
