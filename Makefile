@@ -38,8 +38,11 @@ pirclient: pirclient.o $(CLIENT_O)
 splitdatabase: splitdatabase.o percyio.o
 	g++ -o $@ $^ $(LDLIBS)
 
-rr_test: recover.cc FXY.o gf28.o
+rr_test: gsdecoder.cc FXY.o gf28.o
 	g++ $(CXXFLAGS) -DTEST_RR -o $@ $^ $(LDLIBS)
+
+findpolys_test: gsdecoder.cc FXY.o gf28.o
+	g++ $(CXXFLAGS) -DTEST_FINDPOLYS -o $@ $^ $(LDLIBS)
 
 clean:
 	-rm -f *.o
