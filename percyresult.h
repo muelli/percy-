@@ -21,7 +21,7 @@
 #include <vector>
 #include <string>
 
-NTL_CLIENT
+using namespace std;
 
 struct PercyResult {
     PercyResult(vector<unsigned short> G, string sigma) : G(G), sigma(sigma) {}

@@ -22,7 +22,8 @@ TARGETS=pirserver pirclient splitdatabase
 
 RUNFILES=database database.* out.client out.real
 
-CLIENT_O=percyclient.o percyparams.o recover.o percyio.o FXY.o gf28.o
+CLIENT_O=percyclient.o percyparams.o recover.o gsdecoder.o percyio.o \
+		FXY.o gf28.o
 SERVER_O=percyserver.o percyparams.o datastore.o percyio.o gf28.o
 SRCS=$(subst .o,.cc,$(CLIENT_O) $(SERVER_O) pirclient.o pirserver.o splitdatabase.o percyio.o)
 
@@ -55,12 +56,15 @@ depend:
 # DO NOT DELETE
 
 percyclient.o: /usr/local/include/NTL/vec_vec_ZZ_p.h
-percyclient.o: /usr/local/include/NTL/ZZ_pX.h recover.h
-percyclient.o: /usr/local/include/NTL/vec_ZZ_p.h percyresult.h FXY.h gf28.h
-percyclient.o: percyclient.h percyparams.h
+percyclient.o: /usr/local/include/NTL/ZZ_pX.h recover.h gsdecoder.h
+percyclient.o: percyresult.h FXY.h gsdecoder_impl.h
+percyclient.o: /usr/local/include/NTL/vec_ZZ_p.h gf28.h percyclient.h
+percyclient.o: percyparams.h
 percyparams.o: percyparams.h percyio.h /usr/local/include/NTL/ZZ.h
-recover.o: recover.h /usr/local/include/NTL/vec_ZZ_p.h percyresult.h FXY.h
-recover.o: gf28.h
+recover.o: recover.h gsdecoder.h percyresult.h FXY.h gsdecoder_impl.h
+recover.o: /usr/local/include/NTL/vec_ZZ_p.h gf28.h
+gsdecoder.o: gsdecoder.h percyresult.h FXY.h gsdecoder_impl.h
+gsdecoder.o: /usr/local/include/NTL/vec_ZZ_p.h gf28.h
 percyio.o: percyio.h /usr/local/include/NTL/ZZ.h
 FXY.o: FXY.h
 gf28.o: gf28.h
