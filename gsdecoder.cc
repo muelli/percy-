@@ -126,12 +126,12 @@ int main()
     stringstream ss(stringstream::in | stringstream::out);
 
     vector<unsigned short> goodservers;
+    goodservers.push_back(0);
     goodservers.push_back(1);
     goodservers.push_back(2);
     goodservers.push_back(3);
     goodservers.push_back(4);
     goodservers.push_back(5);
-    goodservers.push_back(6);
     vec_ZZ_p indices, shares;
     ss << "[ 1 2 3 4 5 6 ]";
     ss >> indices;
