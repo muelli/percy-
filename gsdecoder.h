@@ -121,6 +121,17 @@ class GSDecoder {
 	static string append(const string &s, const F &wz,
 		unsigned int bytes_per_word);
 
+	// Set phi to the degree-t polynomial which interpolates the
+	// (indices,values) pairs indexed by I.  Check which
+	// (indices,values) pairs indexed by G agree and disagree with
+	// phi, and set numagree, numdisagree, and vecagree accordingly.
+	static void test_interpolate(unsigned short t,
+		const vec_F &values, const vec_F &indices,
+		const vector<unsigned short> &I,
+		const vector<unsigned short> &G,
+		unsigned short &numagree, unsigned short &numdisagree,
+		vector<unsigned short> &vecagree, FX &phi);
+
 #ifdef TEST_RR
     public:
 #else
@@ -141,7 +152,7 @@ class GSDecoder {
 	// http://citeseer.ist.psu.edu/mceliece03guruswamisudan.html
 	vector<FX> findroots(const FXY &P, int degreebound);
 
-#ifdef TEST_FINDPOLYS
+#if defined(TEST_FINDPOLYS) || defined(TIME_FINDPOLYS)
     public:
 #else
     private:
@@ -155,17 +166,24 @@ class GSDecoder {
 		const vector<unsigned short> &goodservers,
 		const vec_F& indices, const vec_F& shares);
 
+	// Find all polynomials of degree at most k that agree with the
+	// given (index,share) pairs at at least t of the n points.
+	// This version simply uses brute force and interpolates all
+	// subsets of size k+1 of the n points.  Note that in general,
+	// this version does *not* run in polynomial time, but for some
+	// cases (with n-k small, for example) it is faster than
+	// Guruswami-Sudan.
+	//
+	vector<RecoveryPoly<FX> > findpolys_brute(
+		unsigned int k, unsigned int t,
+		const vector<unsigned short> &goodservers,
+		const vec_F &indices, const vec_F &shares);
+
     private:
 	// A structure for holding derived types.  It needs to be
 	// manually specialized for every kind of base field (ZZ_p,
 	// GF2E, etc.) we may want to work in.
 	struct DT {};
-
-	// A helper routine that computes the intersection of two sorted
-	// vectors of unsigned shorts (node IDs).
-	static vector<unsigned short> intersect(
-		const vector<unsigned short> &v1,
-		const vector<unsigned short> &v2);
 
 	// Construct a bivariate polynomial P(x,y) such that, for any
 	// polynomial f(x) of degree at most v that agrees with at least

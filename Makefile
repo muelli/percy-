@@ -15,19 +15,23 @@
 ##  Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
 ##  02111-1307  USA
 
-CXXFLAGS=-Wall -g -O2 -I/usr/local/include/NTL
+CXXFLAGS=-Wall -g -O2 -I/usr/local/include/NTL -pg
 LDLIBS=-lntl -lgmp
+
+TESTS=findpolys_test rr_test time_findpolys time_findpolys_gf28
 
 TARGETS=pirserver pirclient splitdatabase
 
 RUNFILES=database database.* out.client out.real
 
 CLIENT_O=percyclient.o percyparams.o recover.o gsdecoder.o percyio.o \
-		FXY.o gf28.o
+		FXY.o gf28.o subset_iter.o subset.o
 SERVER_O=percyserver.o percyparams.o datastore.o percyio.o gf28.o
 SRCS=$(subst .o,.cc,$(CLIENT_O) $(SERVER_O) pirclient.o pirserver.o splitdatabase.o percyio.o)
 
 all: $(TARGETS)
+
+tests: $(TESTS)
 
 pirserver: pirserver.o $(SERVER_O)
 	g++ -o $@ $^ $(LDLIBS)
@@ -38,10 +42,16 @@ pirclient: pirclient.o $(CLIENT_O)
 splitdatabase: splitdatabase.o percyio.o
 	g++ -o $@ $^ $(LDLIBS)
 
+time_findpolys: gsdecoder.cc FXY.o subset.o subset_iter.o
+	g++ $(CXXFLAGS) -DTIME_FINDPOLYS -o $@ $^ $(LDLIBS)
+
+time_findpolys_gf28: gsdecoder.cc FXY.o subset.o subset_iter.o
+	g++ $(CXXFLAGS) -DTIME_FINDPOLYS -DUSE_GF28 -o $@ $^ $(LDLIBS)
+
 rr_test: gsdecoder.cc FXY.o gf28.o
 	g++ $(CXXFLAGS) -DTEST_RR -o $@ $^ $(LDLIBS)
 
-findpolys_test: gsdecoder.cc FXY.o gf28.o
+findpolys_test: gsdecoder.cc FXY.o gf28.o subset_iter.o
 	g++ $(CXXFLAGS) -DTEST_FINDPOLYS -o $@ $^ $(LDLIBS)
 
 clean:
@@ -61,16 +71,18 @@ depend:
 percyclient.o: /usr/local/include/NTL/vec_vec_ZZ_p.h
 percyclient.o: /usr/local/include/NTL/ZZ_pX.h recover.h gsdecoder.h
 percyclient.o: percyresult.h FXY.h gsdecoder_impl.h
-percyclient.o: /usr/local/include/NTL/vec_ZZ_p.h gf28.h percyclient.h
-percyclient.o: percyparams.h
+percyclient.o: /usr/local/include/NTL/vec_ZZ_p.h subset.h subset_iter.h
+percyclient.o: gf28.h percyclient.h percyparams.h
 percyparams.o: percyparams.h percyio.h /usr/local/include/NTL/ZZ.h
-recover.o: recover.h gsdecoder.h percyresult.h FXY.h gsdecoder_impl.h
-recover.o: /usr/local/include/NTL/vec_ZZ_p.h gf28.h
+recover.o: subset.h subset_iter.h recover.h gsdecoder.h percyresult.h FXY.h
+recover.o: gsdecoder_impl.h /usr/local/include/NTL/vec_ZZ_p.h gf28.h
 gsdecoder.o: gsdecoder.h percyresult.h FXY.h gsdecoder_impl.h
-gsdecoder.o: /usr/local/include/NTL/vec_ZZ_p.h gf28.h
+gsdecoder.o: /usr/local/include/NTL/vec_ZZ_p.h subset.h subset_iter.h gf28.h
 percyio.o: percyio.h /usr/local/include/NTL/ZZ.h
 FXY.o: FXY.h
 gf28.o: gf28.h
+subset_iter.o: subset_iter.h
+subset.o: subset.h
 percyserver.o: /usr/local/include/NTL/vec_ZZ_p.h percyserver.h datastore.h
 percyserver.o: /usr/local/include/NTL/ZZ.h percyparams.h gf28.h
 percyparams.o: percyparams.h percyio.h /usr/local/include/NTL/ZZ.h

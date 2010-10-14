@@ -18,6 +18,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <string.h>
 #include <NTL/ZZ_pX.h>
 #include "percyio.h"
 #include "config.h"

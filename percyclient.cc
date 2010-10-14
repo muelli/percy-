@@ -456,7 +456,10 @@ vector< vector<PercyResult> > PercyClient::process_replies(unsigned short h,
 	    }
 
 	    // std::cerr << i << " " << t+tau << " " << numgood << " " << h << "\n";
-	    Hprime = EasyRecover(bytes_per_word, t+tau, h, H, answersp[q][i], indicesp[q]);
+	    if (getenv("PIRC_HARD") == NULL) {
+		Hprime = EasyRecover(bytes_per_word, t+tau, h, H,
+					answersp[q][i], indicesp[q]);
+	    }
 	    // std::cerr << "easyrecover returned " << res << "\n";
 	    if (Hprime.empty()) {
 		// We seem to have some Byzantine servers.  Try to identify

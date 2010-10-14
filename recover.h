@@ -19,6 +19,7 @@
 #define __RECOVER_H__
 
 #include "gsdecoder.h"
+#include "gf28.h"
 
 NTL_CLIENT
 

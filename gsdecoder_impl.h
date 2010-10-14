@@ -20,12 +20,15 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <sys/time.h>
+#include <time.h>
 #include <vec_ZZ_p.h>
 #include <NTL/ZZ_pXFactoring.h>
 #include <NTL/GF2EXFactoring.h>
+#include "subset.h"
+#include "subset_iter.h"
 #include "percyresult.h"
 #include "FXY.h"
-#include "gf28.h"
 
 // An implementation of the Guruswami-Sudan decoder.  This decoder will
 // produce all possible codewords of degree at most t that match the
@@ -62,30 +65,48 @@ struct GSDecoder_GF2E::DT {
     typedef vec_pair_GF2EX_long vec_pair_FX_long;
 };
 
-// Compute the intersection of the two *strictly sorted* vectors v1 and v2
+// Set phi to the degree-t polynomial which interpolates the
+// (indices,values) pairs indexed by I.  Check which
+// (indices,values) pairs indexed by G agree and disagree with
+// phi, and set numagree, numdisagree, and vecagree accordingly.
 template<class F, class vec_F, class FX, class FXY>
-vector<unsigned short> GSDecoder<F,vec_F,FX,FXY>::intersect(
-	const vector<unsigned short> &v1,
-	const vector<unsigned short> &v2)
+void GSDecoder<F,vec_F,FX,FXY>::test_interpolate(unsigned short t,
+	const vec_F &values, const vec_F &indices,
+	const vector<unsigned short> &I, const vector<unsigned short> &G,
+	unsigned short &numagree, unsigned short &numdisagree,
+	vector<unsigned short> &vecagree, FX &phi)
 {
-    vector<unsigned short> intersection;
-    vector<unsigned short>::const_iterator v1p, v2p;
-    v1p = v1.begin();
-    v2p = v2.begin();
-    while (v1p != v1.end() && v2p != v2.end()) {
-	if (*v1p == *v2p) {
-	    // This is an element of the intersection
-	    intersection.push_back(*v1p);
-	    ++v1p;
-	    ++v2p;
-	} else if (*v1p > *v2p) {
-	    ++v2p;
-	} else {  // *v1p < *v2p
-	    ++v1p;
+    numagree = numdisagree = 0;
+
+    // Use Lagrange interpolation to find the unique polynomial phi
+    // of degree t which matches the points indexed by I
+    vec_F I_indices, I_values;
+    I_indices.SetLength(t+1);
+    I_values.SetLength(t+1);
+    vector<unsigned short>::const_iterator Iiter;
+    unsigned short i = 0;
+    for (Iiter = I.begin(); Iiter != I.end(); ++i, ++Iiter) {
+	I_indices[i] = indices[*Iiter];
+	I_values[i] = values[*Iiter];
+    }
+    interpolate(phi, I_indices, I_values);
+
+    // Count the number of points in G that agree, and that
+    // disagree, with phi
+    vector<unsigned short>::const_iterator Giter;
+    for (Giter = G.begin(); Giter != G.end(); ++Giter) {
+	F phival;
+	eval(phival, phi, indices[*Giter]);
+	if (phival == values[*Giter]) {
+	    ++numagree;
+	    vecagree.push_back(*Giter);
+	} else {
+	    ++numdisagree;
 	}
     }
-    return intersection;
 }
+
+extern unsigned long long hasseop;
 
 // Evaluate the (r,s)th Hasse mixed partial derivative of g at the point
 // (alpha, beta), which is:
@@ -113,15 +134,19 @@ F GSDecoder<F,vec_F,FX,FXY>::evalhasse(const FXY &g,
 	for (int i = xdeg; i >= (int) r; --i) {
 	    resx *= alpha;
 	    resx += C(Ccache, i,r) * coeff(gj, i);
+	    ++hasseop;
 	}
 	// Use Horner's method to accumulate the results into the outer
 	// sum
 	res *= beta;
 	res += C(Ccache, j,s) * resx;
+	++hasseop;
     }
 
     return res;
 }
+
+extern unsigned long long kotter_usec;
 
 // Construct a bivariate polynomial P(x,y) such that, for any polynomial
 // f(x) of degree at most v that agrees with at least t of the given
@@ -136,6 +161,8 @@ FXY GSDecoder<F,vec_F,FX,FXY>::interpolate_kotter(
 	const vector<unsigned short> &goodservers,
 	const vec_F &indices, const vec_F &shares)
 {
+    struct timeval st, et;
+    gettimeofday(&st, NULL);
 
     unsigned int n = goodservers.size();
 
@@ -143,8 +170,13 @@ FXY GSDecoder<F,vec_F,FX,FXY>::interpolate_kotter(
     unsigned int m = 1 + (unsigned int)(floor( v*n / (t*t-v*n)));
     unsigned int L = (m*t - 1)/v;
 
+    if (getenv("PIRC_L")) L = atoi(getenv("PIRC_L"));
+    if (getenv("PIRC_m")) m = atoi(getenv("PIRC_m"));
+
     std::cerr << "Constructing (1," << v << ")-degree " << L*v << " polynomial...\n";
     std::cerr << "Estimated work: " << n * m * (m+1) / 2 * (L+1) << "\n";
+    std::cerr << "L = " << L << "\n";
+    std::cerr << "m = " << m << "\n";
     std::cerr << "Min matches: " << t << "\n";
     std::cerr << "Max degree: " << v << "\n";
 #if 0
@@ -237,6 +269,10 @@ FXY GSDecoder<F,vec_F,FX,FXY>::interpolate_kotter(
 	}
     }
 
+    gettimeofday(&et, NULL);
+    kotter_usec = ((unsigned long long)(et.tv_sec - st.tv_sec))*1000000
+	+ (et.tv_usec - st.tv_usec);
+
     return g[minindex].first;
 }
 
@@ -249,6 +285,11 @@ vector< RecoveryPoly<FX> > GSDecoder<F,vec_F,FX,FXY>::findpolys(unsigned int k,
 	unsigned int t, const vector<unsigned short> &goodservers,
 	const vec_F &indices, const vec_F &shares)
 {
+    char *bruteenv = getenv("PIRC_BRUTE");
+    if (bruteenv && atoi(bruteenv)) {
+	return findpolys_brute(k, t, goodservers, indices, shares);
+    }
+
     FXY P;
     //char *naiveenv = getenv("PIRC_NAIVE");
     //if (naiveenv && atoi(naiveenv)) {
@@ -257,6 +298,7 @@ vector< RecoveryPoly<FX> > GSDecoder<F,vec_F,FX,FXY>::findpolys(unsigned int k,
 	P = interpolate_kotter(k, t, goodservers, indices, shares);
     //}
 
+#if 0
     // cerr << "factor(poly(0";
     for(int j=0;j<=deg(P);++j) {
 	FX x = coeff(P,j);
@@ -264,6 +306,7 @@ vector< RecoveryPoly<FX> > GSDecoder<F,vec_F,FX,FXY>::findpolys(unsigned int k,
 	    // cerr << " + " << coeff(x,i) << "*x^" << i << "*y^" << j;
 	}
     }
+#endif
     // cerr << ", [x,y], IntMod(" << p1*p2 << ")));\n\n";
     std::cerr << "Finding roots of resulting polynomial...\n";
 
@@ -297,6 +340,66 @@ vector< RecoveryPoly<FX> > GSDecoder<F,vec_F,FX,FXY>::findpolys(unsigned int k,
 	    RecoveryPoly<FX> n(vecagree, roots[i]);
 	    polys.push_back(n);
 	}
+    }
+
+    return polys;
+}
+
+// Find all polynomials of degree at most k that agree with the given
+// (index,share) pairs at at least t of the n points.  This version
+// simply uses brute force and interpolates all subsets of size k+1 of
+// the n points.  Note that in general, this version does *not* run in
+// polynomial time, but for some cases (with n-k small, for example) it
+// is faster than Guruswami-Sudan.
+//
+// Runtime is about C(k,t+1) *
+// [2.55712398139188+1.17564033117597*k+4.20999565858028*t+1.21270558067138*t^2]
+// microseconds, according to observations and regression analysis.
+template<class F, class vec_F, class FX, class FXY>
+vector<RecoveryPoly<FX> > GSDecoder<F,vec_F,FX,FXY>::findpolys_brute(
+	unsigned int k, unsigned int t,
+	const vector<unsigned short> &goodservers,
+	const vec_F &indices, const vec_F &shares)
+{
+    vector<RecoveryPoly<FX> > polys;
+
+unsigned int numcombs = 0;
+    // Iterate over all subsets of goodservers of size k+1
+    subset_iterator iter(goodservers, k+1);
+
+    while(!iter.atend()) {
+++numcombs;
+
+	unsigned short numagree, numdisagree;
+	vector<unsigned short> vecagree;
+	FX phi;
+
+	// We should probably avoid calling this if polys[i].G is a
+	// superset of *iter for some i, but "is a superset" is a
+	// non-trivial test with the current data structure, so we'll
+	// just run it anyway for now, and check for uniqueness of phi
+	// on the way out.
+	test_interpolate(k, shares, indices, *iter, goodservers,
+		numagree, numdisagree, vecagree, phi);
+
+	if (numagree >= t) {
+	    // As above: check to see if we've seen this phi before
+	    typename vector<RecoveryPoly<FX> >::iterator polysiter;
+	    bool matched = false;
+	    for (polysiter = polys.begin(); polysiter != polys.end();
+		    ++polysiter) {
+		if (polysiter->phi == phi) {
+		    matched = true;
+		    break;
+		}
+	    }
+	    if (!matched) {
+		RecoveryPoly<FX> n(vecagree, phi);
+		polys.push_back(n);
+	    }
+	}
+
+	++iter;
     }
 
     return polys;

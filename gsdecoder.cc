@@ -21,6 +21,8 @@
 
 NTL_CLIENT
 
+unsigned long long hasseop = 0, kotter_usec = 0;
+
 // Return a new string consisting of s followed by the
 // bytes_per_word-byte representation of wz
 template<>
@@ -177,4 +179,187 @@ int main()
     cout << "[18 14]\n[14 16]\n[8 8]\n";
     return 0;
 }
+#endif
+
+#ifdef TIME_FINDPOLYS
+
+#include <iostream>
+#include <sstream>
+#include <math.h>
+#include <sys/time.h>
+#include <time.h>
+
+template <class F, class vec_F, class FX, class FXY>
+static GSDecoder<F,vec_F,FX,FXY> do_init()
+{
+    GSDecoder<F,vec_F,FX,FXY> decoder;
+    return decoder;
+}
+
+template <>
+GSDecoder_ZZ_p do_init()
+{
+    ZZ modulus, one;
+
+    stringstream ss(stringstream::in | stringstream::out);
+    // 128-bit modulus
+    ss << "340282366920938463463374607431768211507 ";
+    //ss << "65537 ";
+    ss >> modulus;
+    one = 1;
+
+    ZZ_p::init(modulus);
+    return GSDecoder_ZZ_p(one, modulus);
+}
+
+template <>
+GSDecoder_GF2E do_init()
+{
+    // Initialize the GF2E modulus to the one used by AES
+    GF2X AES_P;
+    SetCoeff(AES_P, 8, 1);
+    SetCoeff(AES_P, 4, 1);
+    SetCoeff(AES_P, 3, 1);
+    SetCoeff(AES_P, 1, 1);
+    SetCoeff(AES_P, 0, 1);
+#if 0  // GF(2^16)
+    SetCoeff(AES_P, 16, 1);
+    SetCoeff(AES_P, 5, 1);
+    SetCoeff(AES_P, 3, 1);
+    SetCoeff(AES_P, 2, 1);
+    SetCoeff(AES_P, 0, 1);
+#endif
+
+    GF2E::init(AES_P);
+    GF2X::HexOutput = 1;
+
+    return GSDecoder_GF2E();
+}
+
+template<class F, class vec_F, class FX, class FXY>
+static void time_findpolys(int k, int t, int h)
+{
+    const char *brute = getenv("PIRC_BRUTE");
+    if (brute == NULL) brute = "0";
+
+    GSDecoder<F, vec_F, FX, FXY> decoder = do_init<F,vec_F,FX,FXY>();
+
+    // Construct a random polynomial of degree t
+#ifdef USE_GF28
+    FX randpoly = random_GF2EX(t+1);
+#else
+    FX randpoly = random_ZZ_pX(t+1);
+#endif
+
+    vec_F indices, shares;
+
+#if 0
+    {
+    F r = random_F();
+    struct timeval st, et;
+    gettimeofday(&st, NULL);
+    for (int i = 0; i<1000000; ++i) {
+	r += r;
+    }
+    gettimeofday(&et, NULL);
+    unsigned long long elapsedus = ((unsigned long long)(et.tv_sec -
+		st.tv_sec)) * 1000000 + (et.tv_usec - st.tv_usec);
+    cerr << "+: " << elapsedus << endl;
+    gettimeofday(&st, NULL);
+    for (int i = 0; i<1000000; ++i) {
+	r *= r;
+    }
+    gettimeofday(&et, NULL);
+    elapsedus = ((unsigned long long)(et.tv_sec -
+		st.tv_sec)) * 1000000 + (et.tv_usec - st.tv_usec);
+    cerr << "*: " << elapsedus << endl;
+    gettimeofday(&et, NULL);
+    for (int i = 0; i<10; ++i) {
+	r = power(r,rep(r));
+    }
+    gettimeofday(&et, NULL);
+    elapsedus = ((unsigned long long)(et.tv_sec -
+		st.tv_sec)) * 1000000 + (et.tv_usec - st.tv_usec);
+    cerr << "^: " << elapsedus/10 << endl;
+    exit(0);
+    }
+#endif
+
+    indices.SetLength(k);
+    shares.SetLength(k);
+
+    // Construct the indices and shares
+    for (int i=0; i<k; ++i) {
+#ifdef USE_GF28
+	unsigned char b = i+1;
+	conv(indices[i], GF2XFromBytes(&b, 1));
+#else
+	indices[i] = i+1;
+#endif
+	eval(shares[i], randpoly, indices[i]);
+    }
+
+    // Pick a random subset of them to be wrong
+    vector<unsigned short> allservers, wrongservers;
+
+    for (int i=0; i<k; ++i) {
+	allservers.push_back(i);
+    }
+
+    random_subset(allservers, wrongservers, k-h);
+
+    for(vector<unsigned short>::iterator iter = wrongservers.begin();
+	    iter != wrongservers.end(); ++iter) {
+	shares[*iter] += 1;
+    }
+
+    vector<RecoveryPoly<FX> > recs;
+
+    struct timeval st, et;
+    gettimeofday(&st, NULL);
+    recs = decoder.findpolys(t, h, allservers, indices, shares);
+    gettimeofday(&et, NULL);
+    unsigned long long elapsedus = ((unsigned long long)(et.tv_sec -
+		st.tv_sec)) * 1000000 + (et.tv_usec - st.tv_usec);
+    unsigned int m = 1 + (unsigned int)(floor( t*k / (h*h-t*k)));
+    unsigned int L = (m*h - 1)/t;
+    if (getenv("PIRC_L")) L = atoi(getenv("PIRC_L"));
+    if (getenv("PIRC_m")) m = atoi(getenv("PIRC_m"));
+    cerr << "Time: " <<
+#ifdef USE_GF28
+	"gf28"
+#else
+	"w128"
+#endif
+	<< " " << brute << " " << k << " " << t << " " << h << " "
+	<< elapsedus << " " << m << " " << L << " " <<
+	kotter_usec << " " << hasseop << "\n";
+
+    int numres = 0;
+    for(typename vector<RecoveryPoly<FX> >::const_iterator iter = recs.begin();
+	    iter != recs.end(); ++iter) {
+	if (iter->phi == randpoly) {
+	    cout << "Correct!\n";
+	}
+	++numres;
+    }
+    cout << numres << " result" << (numres == 1 ? "" : "s") << "\n";
+}
+
+int main(int argc, char **argv)
+{
+    int k = argc > 1 ? atoi(argv[1]) : 10;
+    int t = argc > 2 ? atoi(argv[2]) : 5;
+
+    int h = argc > 3 ? atoi(argv[3]) : int(sqrt(double(k*t))) + 1;
+
+#ifdef USE_GF28
+    time_findpolys<GF2E,vec_GF2E,GF2EX,GF2EXY>(k, t, h);
+#else
+    time_findpolys<ZZ_p,vec_ZZ_p,ZZ_pX,ZZ_pXY>(k, t, h);
+#endif
+
+    return 0;
+}
+
 #endif

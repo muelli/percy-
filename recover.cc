@@ -16,29 +16,11 @@
 //  02111-1307  USA
 
 #include <vector>
+#include "subset.h"
+#include "subset_iter.h"
 #include "recover.h"
 
 NTL_CLIENT
-
-// Append k random elements of G[offset..end] to I
-static void random_subset(const vector<unsigned short> &G,
-	vector<unsigned short> &I, unsigned short k, unsigned short offset = 0)
-{
-    if (k == 0) return;
-
-    // How many elements are there to choose from?
-    unsigned short n = G.size() - offset;
-
-    if (n == 0) return;
-
-    // With probability k/n, choose G[offset]
-    if (RandomBnd(n) < k) {
-	I.push_back(G[offset]);
-	random_subset(G, I, k-1, offset+1);
-    } else {
-	random_subset(G, I, k, offset+1);
-    }
-}
 
 vector<PercyResult> EasyRecover_GF28(unsigned short t,
 	unsigned short h, const vector<PercyResult> &H,
@@ -108,47 +90,23 @@ vector<PercyResult> EasyRecover(unsigned int bytes_per_word, unsigned short t,
     for (Hiter = H.begin(); Hiter != H.end(); ++Hiter) {
 	// Pick a random subset I of G, of size t+1
 	vector<unsigned short> I;
-	vector<unsigned short>::const_iterator Iiter;
 	random_subset(Hiter->G, I, t+1);
 
-	// Use Lagrange interpolation to find the unique polynomial phi
-	// of degree t which matches the points indexed by I
-	vec_ZZ_p I_indices, I_values;
-	I_indices.SetLength(t+1);
-	I_values.SetLength(t+1);
-	unsigned short i = 0;
-	for (Iiter = I.begin(); Iiter != I.end(); ++i, ++Iiter) {
-	    I_indices[i] = indices[*Iiter];
-	    I_values[i] = values[*Iiter];
-	}
-	ZZ_pX phi;
-	interpolate(phi, I_indices, I_values);
-
-	// Find the secret determined by phi
-	ZZ_p wz;
-	eval(wz, phi, ZZ_p::zero());
-
-	// Count the number of points in G that agree, and that
-	// disagree, with phi
-	unsigned short numagree = 0;
-	unsigned short numdisagree = 0;
+	unsigned short numagree, numdisagree;
 	vector<unsigned short> vecagree;
-	vector<unsigned short>::const_iterator Giter;
-	for (Giter = Hiter->G.begin(); Giter != Hiter->G.end(); ++Giter) {
-	    ZZ_p phival;
-	    eval(phival, phi, indices[*Giter]);
-	    if (phival == values[*Giter]) {
-		++numagree;
-		vecagree.push_back(*Giter);
-	    } else {
-		++numdisagree;
-	    }
-	}
+
+	ZZ_pX phi;
+	GSDecoder_ZZ_p::test_interpolate(t, values, indices, I, Hiter->G,
+		numagree, numdisagree, vecagree, phi);
 
 	// If at least h agreed, and less than h-t disagreed, then phi
 	// can be the *only* polynomial of degree t matching at least
 	// h points.
 	if (numagree >= h && numdisagree < h-t) {
+	    // Find the secret determined by phi
+	    ZZ_p wz;
+	    eval(wz, phi, ZZ_p::zero());
+
 	    PercyResult n(vecagree, GSDecoder_ZZ_p::append(Hiter->sigma,
 			wz, bytes_per_word));
 	    Hprime.push_back(n);
@@ -161,3 +119,4 @@ vector<PercyResult> EasyRecover(unsigned int bytes_per_word, unsigned short t,
     }
     return Hprime;
 }
+

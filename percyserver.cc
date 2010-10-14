@@ -15,6 +15,7 @@
 //  Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
 //  02111-1307  USA
 
+#include <string.h>
 #include <sys/time.h>
 #include <time.h>
 #include <vec_ZZ_p.h>
